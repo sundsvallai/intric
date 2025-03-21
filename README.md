@@ -10,7 +10,7 @@
 [![Made for: Public Sector](https://img.shields.io/badge/Made%20for-Public%20Sector-orange)](https://github.com/yourusername/intric)
 [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Architecture](#architecture) • [Development](#development) • [Deployment](#production-deployment) • [Community](#community) • [Additional Documentation](docs/)
+[Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Architecture](#docs/architecture.md) • [Development](#development) • [Deployment](#production-deployment) • [Community](#community) • [Additional Documentation](docs/)
 
 </div>
 

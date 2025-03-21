@@ -109,7 +109,7 @@ Intric follows a microservices architecture with several components working toge
 ### Component Interaction
 
 <details>
-<summary>**Click to view detailed interaction diagram**</summary>
+<summary>Click to view detailed interaction diagram</summary>
 
 ```mermaid
 sequenceDiagram

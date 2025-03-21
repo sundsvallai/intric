@@ -98,7 +98,7 @@ We follow a branch-based workflow:
 - Document component props and events.
 
 ### Domain-Driven Design
-- Follow the DDD principles outlined in [DOMAIN_DRIVEN_DESIGN.md](DOMAIN_DRIVEN_DESIGN.md).
+- Follow the DDD principles outlined in [Domain Driven Design](domain-driven-design.md).
 - Ensure new features align with the existing architecture.
 
 ## Testing

@@ -1,5 +1,15 @@
 # Intric Development Guide
 
+## TLDR
+- **Prerequisites**: Python 3.10+, Node.js 16+, Docker, Poetry, pnpm, Git
+- **Quick Setup**: 
+  1. Clone repo
+  2. Start infrastructure (`docker-compose up -d` in backend directory)
+  3. Configure backend (Poetry + database init)
+  4. Configure frontend (pnpm)
+  5. Access at http://localhost:3000 (frontend) and http://localhost:8123 (API)
+- **Architecture**: Domain-driven design with clearly separated backend and frontend services
+
 This guide provides detailed instructions for setting up a development environment for the Intric platform and contributing to the project.
 
 ## Table of Contents
@@ -77,15 +87,22 @@ This guide provides detailed instructions for setting up a development environme
 
 ### Repository Organization
 
+The repository follows a domain-driven organization pattern:
+
 ```
 intric/
 ├── backend/                # Backend Python application
-│   ├── app/                # Application code
-│   │   ├── api/            # API endpoints
-│   │   ├── core/           # Core functionality
-│   │   ├── database/       # Database models and migrations
-│   │   ├── services/       # Business logic services
-│   │   └── worker/         # Background task workers
+│   ├── src/                # Source code
+│   │   └── intric/         # Main package
+│   │       ├── server/     # API server implementation
+│   │       ├── database/   # Database models and migrations
+│   │       ├── assistants/ # Assistants domain
+│   │       ├── sessions/   # Chat sessions domain
+│   │       ├── spaces/     # Collaborative spaces domain
+│   │       ├── files/      # File handling domain
+│   │       ├── users/      # User management domain
+│   │       ├── worker/     # Background task workers
+│   │       └── ...         # Other domain modules
 │   ├── docker-compose.yml  # Development infrastructure
 │   └── pyproject.toml      # Python dependencies
 ├── frontend/               # Frontend SvelteKit application
@@ -112,20 +129,28 @@ intric/
 
 ### Key Components
 
+#### Domain-Driven Structure
+
+The backend follows domain-driven design principles with a clear separation of concerns:
+
+1. **Domain Entities** (`app/domain_name/domain_name.py`) - Core business models
+2. **Repositories** (`app/domain_name/domain_name_repo.py`) - Data access layer
+3. **Services** (`app/domain_name/domain_name_service.py`) - Business logic
+4. **API Routes** (`app/domain_name/api/domain_name_router.py`) - HTTP endpoints
+
 #### API Structure
 
-The backend follows a layered architecture:
+The API layer is organized by domain:
 
-1. **API Routes** (`app/api/`) - Handle HTTP requests and responses
-2. **Services** (`app/services/`) - Implement business logic
-3. **Models** (`app/database/models/`) - Define database schema
-4. **Core** (`app/core/`) - Common utilities and configurations
+1. **API Models** (`app/domain_name/api/domain_name_models.py`) - Request/response schemas
+2. **API Routes** (`app/domain_name/api/domain_name_router.py`) - API endpoints
+3. **Assemblers** (`app/domain_name/api/domain_name_assembler.py`) - Transform between domain and API models
 
 #### Background Processing
 
 Long-running tasks are handled by a worker service using ARQ:
 
-1. Tasks are defined in `app/worker/tasks.py`
+1. Tasks are defined in each domain's corresponding worker module
 2. The worker process is run separately in production
 3. Task statuses are tracked in Redis
 
@@ -133,7 +158,7 @@ Long-running tasks are handled by a worker service using ARQ:
 
 The database schema is managed with SQLAlchemy and Alembic:
 
-1. Models are defined in `app/database/models/`
+1. Models are defined in each domain's models module
 2. Migrations are stored in `app/database/migrations/`
 3. For vector embeddings, the pgvector extension is used
 
@@ -159,12 +184,12 @@ poetry run pytest
 
 #### UI Components
 
-The frontend uses a custom component library located in `frontend/src/lib/components/`:
+The frontend uses a component-based architecture:
 
-- **Layout** - Page layout components
-- **UI** - Basic UI elements (buttons, inputs, etc.)
-- **Session** - Chat session components
-- **Assistant** - Assistant configuration components
+- **Layout Components** - Page layout and structure
+- **Feature Components** - Domain-specific UI components
+- **Common UI Components** - Reusable UI elements
+- **Form Components** - Form inputs and validation
 
 #### State Management
 
@@ -193,11 +218,21 @@ pnpm test
 
 ## Architectural Patterns
 
+### Domain-Driven Design
+
+Intric follows domain-driven design principles:
+
+1. **Ubiquitous Language** - Consistent terminology across code and documentation
+2. **Bounded Contexts** - Clear domain boundaries
+3. **Entities and Value Objects** - Domain models with identity or value semantics
+4. **Repositories** - Data access abstraction
+5. **Domain Services** - Business logic operations
+
 ### Microservices
 
-Intric follows a microservices architecture with these main components:
+The application is structured as a set of loosely coupled services:
 
-1. **Frontend Service** - Svelte application served by Nginx
+1. **Frontend Service** - SvelteKit application served by Nginx
 2. **Backend API** - FastAPI application handling business logic
 3. **Worker Service** - Background task processor
 4. **Database** - PostgreSQL with pgvector
@@ -219,7 +254,6 @@ The security model includes:
 1. **Authentication** - JWT token-based authentication
 2. **Authorization** - Role-based access control
 3. **API Keys** - For programmatic access
-4. **Rate Limiting** - To prevent abuse
 
 ## Testing
 
@@ -231,6 +265,20 @@ Intric uses a comprehensive testing approach:
 2. **Integration Tests** - Test component interactions
 3. **API Tests** - Test API endpoints
 4. **End-to-End Tests** - Test complete user flows
+
+### Test Organization
+
+Tests are organized following the domain structure:
+
+```
+tests/
+├── unit/                     # Unit tests
+│   └── domain_name/          # Tests for specific domain
+├── integration/              # Integration tests
+│   └── domain_name/          # Tests for specific domain
+└── api/                      # API tests
+    └── domain_name/          # Tests for domain API
+```
 
 ### Test Coverage
 

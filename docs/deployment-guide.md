@@ -1,5 +1,15 @@
 # Intric Deployment Guide
 
+## TLDR
+- **Requirements**: Docker Engine 20.10+, Docker Compose 2+, 4GB RAM (recommended)
+- **Quick Deploy**:
+  1. Create `.env` file with required variables
+  2. Pull images: `docker-compose pull`
+  3. Start services: `docker-compose up -d`
+  4. Initialize database: `docker-compose --profile init up db-init` (first time only)
+  5. Verify with: `docker-compose ps`
+- **Production Setup**: Configure SSL/TLS, persistent volumes, regular backups, and resource limits
+
 This guide provides comprehensive instructions for deploying Intric in a production environment.
 
 ## Table of Contents
@@ -12,6 +22,7 @@ This guide provides comprehensive instructions for deploying Intric in a product
 - [Production Considerations](#production-considerations)
 - [Maintenance](#maintenance)
 - [Troubleshooting](#troubleshooting)
+- [Web Server Configuration](#web-server-configuration)
 
 ## Prerequisites
 
@@ -289,7 +300,28 @@ For automated builds, integrate these steps into a CI/CD pipeline:
 
 4. **Monitoring**: Set up health checks and monitoring for the containers.
 
-5. **Service Restart Policies**: All services are configured with `restart: unless-stopped` to automatically recover from failures.
+5. **Resource Limits**: Define CPU and memory limits for production stability:
+   ```yaml
+   services:
+     backend:
+       deploy:
+         resources:
+           limits:
+             cpus: '2'
+             memory: 2G
+     frontend:
+       deploy:
+         resources:
+           limits:
+             cpus: '0.5'
+             memory: 512M
+   ```
+
+6. **Service Restart Policies**: All services are configured with `restart: unless-stopped` to automatically recover from failures.
+
+7. **Database Admin Access**: Consider setting up a database admin tool like pgAdmin for managing the database. This can be run as an additional container or installed separately.
+
+8. **Firewall Configuration**: Ensure your firewall allows traffic to the required ports (typically 3000 for frontend and 8123 for backend).
 
 ## Maintenance
 
@@ -304,6 +336,42 @@ For automated builds, integrate these steps into a CI/CD pipeline:
    docker-compose down
    docker-compose up -d
    ```
+
+### Health Checks (Recommended for Production)
+Add health checks for all services to ensure they're running properly:
+
+```yaml
+services:
+  backend:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
+  frontend:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
+  db:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  redis:
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+```
+
+> **Note**: The health endpoints like `/health` don't automatically exist in the codebase. You'll need to implement a health check endpoint in your backend service (typically returning a 200 OK status when the service is healthy) and in your frontend (typically a small static file or simple route that returns a 200 status). These health checks help Docker Compose determine if services are healthy and allow for proper dependency chaining using `depends_on` with the `condition: service_healthy` option.
 
 ### Scaling
 For higher loads, consider:
@@ -358,3 +426,32 @@ docker-compose logs --tail=100 backend
 ```
 
 Look for ERROR or WARNING level messages that might indicate configuration or connection issues.
+
+## Web Server Configuration
+
+### Nginx (Default)
+
+The default deployment uses Nginx to serve the frontend static files. The Dockerfile includes an Nginx configuration that:
+- Serves the built SvelteKit application 
+- Handles compression
+- Manages routing for SPA functionality
+- Listens on port 3000 (configurable)
+
+### Alternative Web Servers
+
+While Nginx is included in the default configuration, you can replace it with other web servers according to your organization's needs and expertise:
+
+1. **Apache HTTPd**:
+   - Popular alternative with strong security features
+   - Requires a custom Dockerfile replacing Nginx with Apache
+
+2. **Caddy**:
+   - Modern web server with automatic HTTPS
+   - Simpler configuration than Nginx or Apache
+
+3. **Traefik**:
+   - Modern proxy with automatic service discovery
+   - Excellent for microservices architectures
+   - Can handle both routing and SSL/TLS termination
+
+To implement an alternative web server, create a custom frontend Dockerfile that uses your preferred server instead of Nginx, and ensure it correctly serves the SvelteKit static files with proper routing configuration.

@@ -7,7 +7,7 @@
 **An open-source AI-powered knowledge management platform for the public sector**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Made for: Public Sector](https://img.shields.io/badge/Made%20for-Public%20Sector-orange)](https://github.com/cagritest123/intric-docs)
+[![Made for: Public Sector](https://img.shields.io/badge/Made%20for-Public%20Sector-orange)](https://github.com/cagritest123/intric-release)
 [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](docs/contributing.md)
 
 [Features](#features) • [Quick Start](#quick-start) • [Documentation](docs/) • [Architecture](docs/architecture.md) • [Development](docs/development-guide.md) • [Deployment](docs/deployment-guide.md) • [Contributing](docs/contributing.md)
@@ -28,8 +28,8 @@ Intric is an open-source AI platform designed to provide equitable access to gen
 
 ## ✨ Features
 
-- **AI Assistants**: Create chatbot-based AI assistants tailored to specific needs
-- **Knowledge Bases**: Build searchable knowledge repositories from websites, documents, and APIs
+- **AI Assistants**: Create chatbot-based AI assistants tailored to specific needs with customizable prompts
+- **Knowledge Bases**: Build searchable knowledge repositories from websites, documents, and APIs using vector embeddings
 - **Custom AI Services**: Develop specialized AI services for specific tasks
 - **Collaboration**: Team workspaces for developing, testing, and managing AI applications
 - **Multi-modal Capabilities**: Analyze images, transcribe audio, and process various data formats
@@ -63,7 +63,7 @@ docker-compose --profile init up db-init
 # 5. Access Intric at http://localhost:3000
 ```
 
-For detailed installation instructions, see the [Deployment Guide](#production-deployment-guide).
+For detailed installation instructions, see the [Deployment Guide](docs/deployment-guide.md).
 
 ## 📚 Documentation
 
@@ -76,12 +76,14 @@ For detailed installation instructions, see the [Deployment Guide](#production-d
 - **Message Broker**: Redis
 - **Task Queue**: ARQ (Redis-based)
 - **Dependency Management**: Poetry
+- **Architecture**: Domain-Driven Design (DDD)
 
 #### Frontend
 - **Framework**: SvelteKit
 - **Package Manager**: pnpm
-- **HTTP Client**: Axios/Fetch
+- **HTTP Client**: Fetch API with custom wrapper
 - **Styling**: CSS/SCSS
+- **State Management**: Svelte stores
 
 #### Infrastructure
 - **Containerization**: Docker
@@ -182,7 +184,7 @@ pnpm install
 pnpm dev
 ```
 
-For detailed development instructions, including project structure, testing, and contributing guidelines, see the [Development Guide](docs/DEVELOPMENT.md).
+For detailed development instructions, including project structure, testing, and contributing guidelines, see the [Development Guide](docs/development-guide.md).
 
 ## 🌐 Production Deployment Guide
 
@@ -191,7 +193,7 @@ For detailed development instructions, including project structure, testing, and
 - Docker Compose 2.x or later
 - Minimum 4GB RAM recommended (1GB minimum)
 - Sufficient disk space for database storage (~50GB recommended)
-- Outbound internet connectivity to LLM APIs (not required for on-prem deployment)
+- Outbound internet connectivity to LLM APIs (not required for on-prem deployment if you run models locally)
 
 ### Quick Deployment
 
@@ -214,7 +216,7 @@ docker-compose up -d
 docker-compose --profile init up db-init
 ```
 
-For comprehensive deployment instructions, including all configuration options, Nexus registry setup, and troubleshooting, see the [Deployment Guide](docs/DEPLOYMENT.md).
+For comprehensive deployment instructions, including all configuration options, Nexus registry setup, and troubleshooting, see the [Deployment Guide](docs/deployment-guide.md).
 
 ### Key Environment Variables
 

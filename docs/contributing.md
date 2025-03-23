@@ -1,5 +1,12 @@
 # Contributing to Intric
 
+## TLDR
+- **Code Standards**: Follow PEP 8 for Python, project ESLint for frontend, and DDD principles
+- **Workflow**: Feature branches, conventional commits, and test coverage requirements
+- **Pull Requests**: Clear descriptions, reference issues, and maintain documentation
+- **Testing**: Unit tests, integration tests, and API tests with ≥80% coverage
+- **Documentation**: Update docs for any feature or API changes
+
 Thank you for your interest in contributing to Intric! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
@@ -100,12 +107,15 @@ We follow a branch-based workflow:
 ### Domain-Driven Design
 - Follow the DDD principles outlined in [Domain Driven Design](domain-driven-design.md).
 - Ensure new features align with the existing architecture.
+- Organize code by business domain, not technical function.
+- Use repositories for data access, services for business logic.
 
 ## Testing
 
 - Write tests for all new functionality.
 - Run existing tests before submitting a PR: `poetry run pytest` for backend, `pnpm test` for frontend.
 - Include both unit and integration tests when appropriate.
+- Follow test naming conventions and organize tests by domain.
 
 ## Documentation
 
@@ -113,6 +123,7 @@ We follow a branch-based workflow:
 - Document all public APIs using appropriate docstrings.
 - Follow the existing documentation style.
 - Ensure README and relevant guides are updated if applicable.
+- Use clear, concise language and include examples where helpful.
 
 ## Community
 

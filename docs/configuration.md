@@ -1,5 +1,12 @@
 # Intric Configuration Guide
 
+## TLDR
+- **Required Settings**: NEXUS_REGISTRY, IMAGE_TAG, POSTGRES_PASSWORD, JWT_SECRET
+- **LLM Integration**: Configure at least one provider (OpenAI, Anthropic, or Azure)
+- **Network Settings**: Configure ports and domain names for production
+- **Security Options**: Authentication method, token expiry, and API access control
+- **Resource Limits**: Adjust container resources based on expected load
+
 This guide provides comprehensive information about configuring the Intric platform through environment variables and configuration files.
 
 ## Table of Contents
@@ -243,9 +250,6 @@ To use OpenAI models:
 
 ```
 OPENAI_API_KEY=your_api_key
-OPENAI_MODEL=gpt-4
-OPENAI_TEMPERATURE=0.7
-OPENAI_MAX_TOKENS=4096
 ```
 
 ### Anthropic Configuration
@@ -254,9 +258,6 @@ To use Anthropic Claude models:
 
 ```
 ANTHROPIC_API_KEY=your_api_key
-ANTHROPIC_MODEL=claude-3-opus
-ANTHROPIC_TEMPERATURE=0.7
-ANTHROPIC_MAX_TOKENS=4096
 ```
 
 ### Azure OpenAI Configuration
@@ -275,7 +276,7 @@ AZURE_API_VERSION=2023-05-15
 
 ### PostgreSQL Configuration
 
-Fine-tune PostgreSQL performance:
+For production deployments, you may want to fine-tune PostgreSQL performance (recommended):
 
 ```
 POSTGRES_MAX_CONNECTIONS=100
@@ -284,21 +285,13 @@ POSTGRES_EFFECTIVE_CACHE_SIZE=3GB
 POSTGRES_WORK_MEM=64MB
 ```
 
-### pgvector Configuration
-
-Optimize pgvector for your use case:
-
-```
-PGVECTOR_PROBES=10
-PGVECTOR_LIST_SIZE=100
-PGVECTOR_INDEX_TYPE=ivfflat
-```
+These are standard PostgreSQL configuration parameters that can be passed to the database container.
 
 ## Security Configuration
 
 ### SSL/TLS Configuration
 
-For production environments, configure SSL/TLS termination through a reverse proxy:
+For production environments, configure SSL/TLS termination through a reverse proxy (recommended):
 
 ```
 SSL_CERT_PATH=/path/to/cert.pem
@@ -306,59 +299,55 @@ SSL_KEY_PATH=/path/to/key.pem
 USE_HTTPS=True
 ```
 
-### Rate Limiting
-
-Configure rate limiting to prevent abuse:
-
-```
-RATE_LIMIT_ENABLED=True
-RATE_LIMIT_PER_MINUTE=60
-RATE_LIMIT_PER_HOUR=1000
-```
-
 ## Advanced Configuration
 
-### Worker Configuration
+### Resource Limits (Docker)
 
-Configure the background worker:
+For production deployments, it's recommended to set resource limits for containers to ensure stability and prevent resource starvation:
 
+```yaml
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+          
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+          
+  worker:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+          
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 ```
-WORKER_CONCURRENCY=4
-WORKER_MAX_RETRIES=3
-WORKER_RETRY_DELAY=60
-```
 
-### Logging Configuration
-
-Advanced logging configuration:
-
-```
-LOG_FORMAT=json
-LOG_TO_FILE=True
-LOG_FILE_PATH=/var/log/intric/app.log
-LOG_ROTATION=True
-LOG_ROTATION_SIZE=10MB
-LOG_RETENTION=30
-```
-
-### Caching Configuration
-
-Configure caching behavior:
-
-```
-CACHE_ENABLED=True
-CACHE_TTL=3600
-CACHE_MAX_SIZE=1GB
-```
-
-### Memory Management
-
-Configure memory limits:
-
-```
-MAX_EMBEDDING_BATCH_SIZE=100
-MAX_DOCUMENT_SIZE=10MB
-EMBEDDING_DIMENSION=1536
-```
+The `limits` set the maximum resources a container can use, while `reservations` guarantee a minimum amount of resources. Adjust these values based on your workload and available resources.
 
 For additional configuration options, check the source code or contact the development team.

@@ -1,5 +1,12 @@
 # Intric Architecture
 
+## TLDR
+- **Core Components**: Frontend (SvelteKit), Backend (FastAPI), Worker, PostgreSQL, Redis
+- **Data Flow**: REST API for client interaction, background processing for heavy tasks
+- **Design Principles**: Domain-driven design, separation of concerns, and clean architecture
+- **Integration**: Vector search for knowledge retrieval, streaming for real-time responses
+- **Scalability**: Independent scaling of frontend, backend, and worker components
+
 This document provides a comprehensive overview of the Intric platform architecture, explaining how different components interact and the design principles behind the system.
 
 ## Table of Contents
@@ -45,7 +52,7 @@ The Intric platform consists of these primary components:
 - **Key Features**: 
   - Responsive UI components
   - Client-side routing
-  - State management
+  - State management using Svelte stores
   - Real-time updates via Server-Sent Events (SSE)
 
 ### Backend API
@@ -54,7 +61,7 @@ The Intric platform consists of these primary components:
 - **Key Features**:
   - RESTful API endpoints
   - JWT authentication
-  - Request validation
+  - Request validation with Pydantic
   - Business logic coordination
   - LLM integration
 
@@ -66,6 +73,41 @@ The Intric platform consists of these primary components:
   - Website crawling
   - Vector embedding generation
   - Asynchronous processing
+  
+#### Worker Implementation
+
+The worker service is built on ARQ, a Redis-based task queue. Task definitions follow this pattern:
+
+```python
+# Task definition with ARQ
+async def process_document_task(ctx, document_id: str):
+    """Process a document and generate embeddings."""
+    # Fetch document
+    document = await get_document(document_id)
+    
+    # Process document
+    embeddings = process_document(document)
+    
+    # Save embeddings
+    await save_embeddings(document_id, embeddings)
+    
+    return {"status": "completed", "document_id": document_id}
+```
+
+Worker configuration follows the ARQ pattern:
+
+```python
+class WorkerSettings:
+    """ARQ worker settings."""
+    redis_settings = RedisSettings(host=REDIS_HOST, port=REDIS_PORT)
+    functions = [
+        process_document_task,
+        crawl_website_task,
+        generate_embeddings_task,
+    ]
+    on_startup = startup
+    on_shutdown = shutdown
+```
 
 ### Database
 - **Technology**: PostgreSQL with pgvector extension
@@ -211,8 +253,8 @@ Intric implements a multi-layered security approach:
 - No persistent storage of LLM API keys in database
 
 ### API Security
-- Input validation and sanitization
-- Rate limiting
+- Input validation and sanitization with Pydantic
+- Error handling for external API rate limits
 - CSRF protection
 - Security headers
 

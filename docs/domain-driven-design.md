@@ -1,5 +1,12 @@
 # Domain-Driven Design in Intric
 
+## TLDR
+- **Feature Organization**: Domain entities, repositories, services, and factories
+- **Implementation Pattern**: Follow the standard structure in `feature_x/` directories
+- **Business Logic**: Keep domain logic in entities, cross-entity operations in services
+- **Testing Approach**: Write domain tests, application tests, and integration tests
+- **Development Flow**: Model the domain first, then implement the technical components
+
 This document outlines how Domain-Driven Design (DDD) principles are applied within the Intric platform, particularly for new feature development.
 
 ## Table of Contents
@@ -153,7 +160,7 @@ class SpaceRepository:
     def __init__(self, db_session):
         self.db_session = db_session
         
-    def get_by_id(self, space_id: str) -> Optional[Space]:
+    def get_by_id(self, space_id: str) -> Optional<Space]:
         """Retrieve a space by its ID."""
         space_data = self.db_session.query(SpaceModel).filter_by(id=space_id).first()
         if not space_data:
@@ -379,19 +386,53 @@ class AssistantRepository:
         
     def get_by_id(self, assistant_id: str) -> Optional[Assistant]:
         """Get assistant by ID."""
-        # Implementation...
+        assistant_data = self.db_session.query(AssistantModel).filter_by(id=assistant_id).first()
+        if not assistant_data:
+            return None
+        
+        return self._map_to_domain(assistant_data)
         
     def list_by_owner(self, owner_id: str) -> List[Assistant]:
         """List assistants by owner."""
-        # Implementation...
+        assistant_data = self.db_session.query(AssistantModel).filter_by(owner_id=owner_id).all()
+        return [self._map_to_domain(a) for a in assistant_data]
         
     def save(self, assistant: Assistant) -> Assistant:
         """Save an assistant."""
-        # Implementation...
+        assistant_model = self._map_to_model(assistant)
+        self.db_session.merge(assistant_model)
+        self.db_session.commit()
+        return assistant
         
     def delete(self, assistant_id: str) -> None:
         """Delete an assistant."""
-        # Implementation...
+        assistant_model = self.db_session.query(AssistantModel).filter_by(id=assistant_id).first()
+        if assistant_model:
+            self.db_session.delete(assistant_model)
+            self.db_session.commit()
+            
+    def _map_to_domain(self, model: AssistantModel) -> Assistant:
+        """Map database model to domain object."""
+        return Assistant(
+            id=model.id,
+            name=model.name,
+            description=model.description,
+            owner_id=model.owner_id,
+            created_at=model.created_at,
+            updated_at=model.updated_at
+        )
+        
+    def _map_to_model(self, assistant: Assistant) -> AssistantModel:
+        """Map domain object to database model."""
+        model = AssistantModel(
+            id=assistant.id,
+            name=assistant.name,
+            description=assistant.description,
+            owner_id=assistant.owner_id,
+            created_at=assistant.created_at,
+            updated_at=assistant.updated_at
+        )
+        return model
 ```
 
 ### Factory Pattern

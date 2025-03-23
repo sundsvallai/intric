@@ -1,5 +1,12 @@
 # Intric Troubleshooting Guide
 
+## TLDR
+- **Check Logs**: Use `docker-compose logs <service_name>` to identify errors
+- **Verify Configuration**: Ensure environment variables are set correctly
+- **Database Issues**: Check connections with `docker-compose exec db psql -U postgres`
+- **Network Problems**: Verify containers can communicate with each other
+- **Common Fixes**: Most issues can be resolved by checking container status, logs, and config files
+
 This guide provides solutions for common issues encountered when deploying, developing, or using the Intric platform.
 
 ## Table of Contents
@@ -224,6 +231,13 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 3. Ensure you're using PostgreSQL 13 or higher with pgvector extension
 
+4. Check vector dimensions match in your application and database:
+   ```sql
+   SELECT column_name, data_type 
+   FROM information_schema.columns 
+   WHERE table_name = 'embeddings';
+   ```
+
 ## Network Issues
 
 ### Internal Service Communication
@@ -266,6 +280,11 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 4. Ensure `SERVICE_FQDN_FRONTEND` is set correctly in production
 
+5. Check if your service is listening on the correct interface:
+   ```bash
+   docker-compose exec frontend netstat -tulpn
+   ```
+
 ## Authentication Issues
 
 ### JWT Token Problems
@@ -282,6 +301,8 @@ This guide provides solutions for common issues encountered when deploying, deve
 3. Ensure clock synchronization between server and clients
 
 4. Verify JWT configuration with a tool like jwt.io
+
+5. Check browser console for CORS issues with authentication headers
 
 ### Login Failures
 
@@ -302,6 +323,11 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 3. For MobilityGuard integration, check OIDC configuration values
 
+4. Verify that the authentication endpoint is responding correctly:
+   ```bash
+   curl -X POST http://localhost:8123/api/v1/auth/login -d '{"email":"user@example.com","password":"Password1!"}'
+   ```
+
 ## LLM Integration Issues
 
 ### API Key Problems
@@ -319,6 +345,11 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 4. Check for any IP restrictions on API keys
 
+5. Verify that LLM API keys have been loaded by the application:
+   ```bash
+   docker-compose exec backend python -c "import os; print('OPENAI_API_KEY exists:', bool(os.environ.get('OPENAI_API_KEY')))"
+   ```
+
 ### Response Timeouts
 
 **Symptoms:**
@@ -334,6 +365,8 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 4. Consider reducing model complexity or prompt length
 
+5. Try a different LLM provider to rule out provider-specific issues
+
 ### Content Filtering Issues
 
 **Symptoms:**
@@ -343,9 +376,11 @@ This guide provides solutions for common issues encountered when deploying, deve
 **Possible Solutions:**
 1. Review prompt templates for potentially problematic content
 
-2. Adjust temperature/creativity settings
+2. Consider using a different LLM provider to rule out provider-specific filtering issues
 
-3. Consider using a different model or provider
+3. Check the prompt structure to ensure it follows provider guidelines
+
+4. If permitted by your provider, check their documentation for any available content filter configuration options
 
 ## Frontend Issues
 
@@ -364,6 +399,11 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 4. Test in a different browser to isolate the issue
 
+5. Check if all frontend dependencies are loading correctly:
+   ```bash
+   docker-compose exec frontend ls -la /usr/share/nginx/html
+   ```
+
 ### State Management Issues
 
 **Symptoms:**
@@ -376,6 +416,8 @@ This guide provides solutions for common issues encountered when deploying, deve
 2. Verify API responses in Network tab
 
 3. Review component lifecycle management
+
+4. Add more detailed logging to identify where state becomes inconsistent
 
 ### Performance Problems
 
@@ -391,6 +433,13 @@ This guide provides solutions for common issues encountered when deploying, deve
 3. Consider implementing pagination for large datasets
 
 4. Optimize frontend bundle size
+
+5. Use performance profiling tools to identify bottlenecks:
+   ```javascript
+   console.time('operation');
+   // Code to measure
+   console.timeEnd('operation');
+   ```
 
 ## Backend Issues
 
@@ -410,7 +459,10 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 3. Verify request format matches expected schema
 
-4. Test endpoint directly with curl or Postman
+4. Test endpoint directly with curl or Postman:
+   ```bash
+   curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8123/api/v1/endpoint
+   ```
 
 ### Worker Task Failures
 
@@ -436,6 +488,26 @@ This guide provides solutions for common issues encountered when deploying, deve
    docker-compose exec redis redis-cli LLEN arq:queue
    ```
 
+5. Try requeuing stuck tasks:
+   ```bash
+   docker-compose exec redis redis-cli DEL arq:job:YOUR_JOB_ID
+   ```
+
+### Domain Logic Issues
+
+**Symptoms:**
+- Unexpected application behavior
+- Business rules not being enforced correctly
+
+**Possible Solutions:**
+1. Check domain entity implementations
+
+2. Verify service layer logic
+
+3. Add more detailed logging for domain operations
+
+4. Review the affected domain's test coverage
+
 ## Performance Issues
 
 ### Slow Query Performance
@@ -455,9 +527,14 @@ This guide provides solutions for common issues encountered when deploying, deve
    EXPLAIN ANALYZE SELECT * FROM table WHERE condition;
    ```
 
-3. Consider optimizing vector search parameters
+3. Consider optimizing vector search parameters:
+   ```sql
+   ALTER INDEX embedding_idx SET (probes = 10);
+   ```
 
 4. Monitor database connection pool usage
+
+5. Check for N+1 query patterns in ORM code
 
 ### Memory Usage Problems
 
@@ -500,6 +577,12 @@ This guide provides solutions for common issues encountered when deploying, deve
 
 4. Review algorithms for optimization opportunities
 
+5. Profile Python code to find CPU-intensive operations:
+   ```python
+   import cProfile
+   cProfile.run('function_to_profile()')
+   ```
+
 ## Common Error Messages
 
 ### "No such container"
@@ -521,6 +604,7 @@ This guide provides solutions for common issues encountered when deploying, deve
 1. Verify the service is running
 2. Check hostname and port are correct
 3. Ensure network connectivity between services
+4. Check if the service is listening on the expected interface (not just localhost)
 
 ### "Permission denied"
 
@@ -528,6 +612,7 @@ This guide provides solutions for common issues encountered when deploying, deve
 1. Check file and directory permissions
 2. Verify container user has appropriate access
 3. Review volume mount configurations
+4. Use Docker user namespace mapping for persistent volume access
 
 ### "Out of memory"
 
@@ -535,6 +620,8 @@ This guide provides solutions for common issues encountered when deploying, deve
 1. Increase available memory for Docker
 2. Review memory-intensive operations
 3. Consider memory limitations in configuration
+4. Implement appropriate memory limits in docker-compose.yml
+5. Add swap space if necessary (though not recommended for production)
 
 ### "Database is being accessed by other users"
 
@@ -549,11 +636,30 @@ This guide provides solutions for common issues encountered when deploying, deve
    docker-compose exec db psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'postgres' AND pid <> pg_backend_pid();"
    ```
 
+### "vector_eq_op_procedure doesn't exist"
+
+**Possible Solutions:**
+1. This typically indicates a pgvector installation issue
+2. Verify pgvector extension is installed correctly:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
+   ```
+3. Ensure you're using a compatible PostgreSQL version with pgvector
+
 ## Getting Help
 
 If you're still experiencing issues after trying these troubleshooting steps:
 
 1. Check GitHub issues for similar problems
 2. Join the community forum (email [digitalisering@sundsvall.se](mailto:digitalisering@sundsvall.se))
-3. Collect detailed logs and error messages to help with diagnosis
+3. Collect detailed logs and error messages to help with diagnosis:
+   ```bash
+   docker-compose logs > intric-logs.txt
+   ```
 4. Prepare a minimal reproduction case if possible
+5. Include your environment details when asking for help:
+   ```bash
+   docker version
+   docker-compose version
+   docker info
+   ```

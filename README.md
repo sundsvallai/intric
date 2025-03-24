@@ -139,11 +139,15 @@ For detailed installation instructions, see the [Deployment Guide](docs/deployme
 Intric follows a microservices architecture with several components working together:
 
 ```mermaid
-graph TB
-    Frontend["Frontend<br/>(SvelteKit)"] <--> Backend["Backend<br/>(FastAPI)"]
-    Backend <--> Database["Database<br/>(PostgreSQL)"]
-    Backend <--> Worker["Worker<br/>Service"]
-    Worker <--> Redis["Redis"]
+graph LR
+    classDef component fill:#f5f5f5,stroke:#d3d3d3,stroke-width:1px,color:#333
+    
+    Frontend["Frontend<br/>(SvelteKit)"] <---> Backend["Backend<br/>(FastAPI)"]
+    Backend <---> Database["Database<br/>(PostgreSQL)"]
+    Backend <---> Worker["Worker<br/>Service"]
+    Worker <---> Redis["Redis"]
+    
+    class Frontend,Backend,Database,Worker,Redis component
 ```
 
 ### Component Interaction

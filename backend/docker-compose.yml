@@ -1,0 +1,32 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16@sha256:8fd720a9b6a49e70ca90fc0d97c2efea45c70d58b1727b92fcaecd05fcd87e40
+    ports:
+      - 5432:5432
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:8.0-M04-alpine3.21@sha256:f3574f3ce99949bed546a715f86cdcdc44bca514bd5cf6484591ef1b2153e8d3
+    ports:
+      - 6379:6379
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres_data:
+  redis_data:

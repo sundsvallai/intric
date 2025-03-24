@@ -83,6 +83,170 @@ This guide provides detailed instructions for setting up a development environme
    - Backend API: http://localhost:8123
    - API documentation: http://localhost:8123/docs
 
+### Environment Setup for Different Workflows
+
+Intric provides environment templates for different development and deployment scenarios:
+
+#### Local Development Environment
+
+For local development without Docker:
+
+1. **Backend Development**:
+   ```bash
+   cd backend
+   
+   # Copy environment file
+   cp .env.example .env
+   
+   # Customize your local environment variables
+   # Note: This configuration uses localhost for database and Redis
+   nano .env
+   
+   # Start infrastructure services only
+   docker-compose up -d
+   
+   # Run backend directly with Poetry
+   poetry run uvicorn intric.server.main:app --reload --port 8123
+   ```
+
+2. **Frontend Development**:
+   ```bash
+   cd frontend
+   
+   # Copy environment file
+   cp .env.example .env
+   
+   # Customize your local environment variables
+   nano .env
+   
+   # Start frontend development server
+   pnpm dev
+   ```
+
+#### Docker Testing During Development
+
+To test your changes in Docker containers:
+
+```bash
+# From project root
+cp .env.example .env
+
+# Set local registry and development image tag
+echo "NEXUS_REGISTRY=localhost" >> .env
+echo "IMAGE_TAG=dev" >> .env
+
+# Build images with the build script
+./build_and_push.sh
+
+# Run the entire stack
+docker compose up -d
+```
+
+This approach allows you to test the full stack exactly as it would run in production, but using your local development images.
+
+### Building Docker Images
+
+When you need to build and test your changes in Docker containers or prepare images for staging/production environments, Intric provides two approaches:
+
+#### Option 1: Using the build_and_push.sh Script (Recommended)
+
+The repository includes an optimized build script that follows Docker best practices:
+
+```bash
+# Make the script executable (first time only)
+chmod +x build_and_push.sh
+
+# Set required environment variables
+export NEXUS_REGISTRY="your.nexus.registry.com"
+# Optional - script can auto-detect version from Git
+export IMAGE_TAG="dev-$(git rev-parse --short HEAD)"  
+export NEXUS_USERNAME="your_username"  # Optional
+export NEXUS_PASSWORD="your_password"  # Optional
+
+# Run the script
+./build_and_push.sh
+```
+
+Benefits of using this script during development:
+- Uses Docker BuildKit for faster, more efficient builds
+- Optimizes caching between builds, resulting in quicker iteration
+- Intelligent versioning strategy:
+  - Automatically uses Git tags if available
+  - For development branches, creates unique tags with branch name, commit hash and date
+  - Only tags as "latest" for main/master branches or semantic versions
+- Provides colorized output with helpful progress and error messages
+
+#### Option 2: Building Images Manually
+
+For more control over the build process:
+
+```bash
+# Backend image
+cd backend
+docker build -t intric/backend:dev .
+
+# Frontend image
+cd ../frontend
+docker build -t intric/frontend:dev .
+```
+
+### Testing Built Images Locally
+
+After building the images, you can test them locally:
+
+```bash
+# Create a local .env file with test configuration
+cp .env.example .env
+nano .env  # Edit configuration as needed
+
+# Run the stack using your locally built images
+export NEXUS_REGISTRY="localhost"
+export IMAGE_TAG="dev"
+docker compose up -d
+```
+
+### Environment Configuration
+
+Intric uses clearly named environment files to distinguish between local development and production settings:
+
+#### Local Development Files
+1. `backend/.env.local.example`
+   - Contains configuration for running backend services directly on your machine
+   - Points to localhost for database and Redis connections
+   - Includes debug-level logging and development-specific settings
+   - **Usage**: Copy to `backend/.env` for local development
+
+2. `frontend/.env.local.example`
+   - Contains frontend development settings
+   - Points to local backend service
+   - Includes development-specific features
+   - **Usage**: Copy to `frontend/.env` for local development
+
+#### Production Configuration
+- `.env.production.example` (in root directory)
+  - Contains full stack configuration for containerized deployment
+  - Uses internal Docker network hostnames
+  - Includes all service configurations
+  - **Usage**: Copy to `.env` in root directory for production deployment
+
+### Setting Up Your Development Environment
+
+1. **Backend Setup**:
+   ```bash
+   cd backend
+   cp .env.local.example .env  # Copy the local development template
+   # Edit .env to set your API keys and other configurations
+   ```
+
+2. **Frontend Setup**:
+   ```bash
+   cd frontend
+   cp .env.local.example .env  # Copy the local development template
+   # Edit .env to configure frontend settings
+   ```
+
+> **Note**: Never commit `.env` files to version control. The example files provide templates with safe default values and clear documentation of required variables.
+
 ## Project Structure
 
 ### Repository Organization

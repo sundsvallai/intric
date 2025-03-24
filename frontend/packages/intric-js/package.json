@@ -1,0 +1,25 @@
+{
+  "name": "@intric/intric-js",
+  "version": "1.11.0",
+  "type": "module",
+  "module": "index.js",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
+    "update": "node update.js && pnpm run format"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.16",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.14.0",
+    "openapi-typescript": "^6.7.6",
+    "prettier": "^3.4.2"
+  },
+  "exports": {
+    ".": "./index.js"
+  },
+  "sideEffects": false
+}

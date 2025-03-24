@@ -4,10 +4,10 @@
 - **Requirements**: Docker Engine 20.10+, Docker Compose 2+, 4GB RAM (recommended)
 - **Quick Deploy**:
   1. Create `.env` file with required variables
-  2. Pull images: `docker-compose pull`
-  3. Start services: `docker-compose up -d`
-  4. Initialize database: `docker-compose --profile init up db-init` (first time only)
-  5. Verify with: `docker-compose ps`
+  2. Pull images: `docker compose pull`
+  3. Start services: `docker compose up -d`
+  4. Initialize database: `docker compose --profile init up db-init` (first time only)
+  5. Verify with: `docker compose ps`
 - **Production Setup**: Configure SSL/TLS, persistent volumes, regular backups, and resource limits
 
 This guide provides comprehensive instructions for deploying Intric in a production environment.
@@ -133,6 +133,46 @@ Here's a comprehensive list of available environment variables:
 #### Logging
 - `LOGLEVEL`: Log level (DEBUG, INFO, WARNING, ERROR) (default: INFO)
 
+## Environment Configuration
+
+Intric uses the following environment configuration files:
+
+### Production Deployment
+1. **Primary Configuration**: `.env.production.example`
+   - Located in root directory
+   - Contains all variables needed for production deployment
+   - Usage: `cp .env.production.example .env`
+
+The root `.env.production.example` file includes comprehensive configuration for:
+- Docker registry settings
+- Network configuration
+- Database and Redis settings
+- Authentication and security
+- Feature flags and API keys
+- File upload limits
+- Logging configuration
+
+Example production setup:
+```bash
+# Copy the production environment template
+cp .env.production.example .env
+
+# Edit required variables (minimum configuration)
+nano .env
+
+# Required variables to set:
+NEXUS_REGISTRY=your.nexus.registry.com
+IMAGE_TAG=version_to_deploy
+POSTGRES_PASSWORD=secure_password
+JWT_SECRET=secure_random_string
+
+# Optional but recommended:
+SERVICE_FQDN_FRONTEND=your.domain.com
+OPENAI_API_KEY=your_openai_key  # Or other LLM provider keys
+```
+
+> **Note**: The `.env` files should never be committed to version control. The `.env.production.example` file serves as a template and documentation of available configuration options.
+
 ## Deployment Steps
 
 1. **Create a `.env` file**:
@@ -151,28 +191,28 @@ Here's a comprehensive list of available environment variables:
 
 2. **Pull the Docker images from your Nexus registry**:
    ```bash
-   docker-compose pull
+   docker compose pull
    ```
 
 3. **Start the services**:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
    This will start all container services defined in docker-compose.yml: frontend, backend, worker, db, and redis.
 
 4. **Initialize the database** (first time only):
    ```bash
-   docker-compose --profile init up db-init
+   docker compose --profile init up db-init
    ```
    This command runs the database initialization container which sets up the schema and initial data.
 
 5. **Verify deployment**:
    ```bash
-   docker-compose ps
+   docker compose ps
    ```
    Ensure all services are running properly and check logs if needed:
    ```bash
-   docker-compose logs -f [service_name]
+   docker compose logs -f [service_name]
    ```
 
 6. **Verify connectivity**:
@@ -202,6 +242,41 @@ Intric is designed to use a private Docker registry like Nexus for storing and d
    ```
 
 ### Building Docker Images for Nexus
+
+There are two approaches to building and pushing images:
+
+#### Option 1: Using the build_and_push.sh Script (Recommended)
+
+The repository includes an optimized script for building and pushing images that follows best practices:
+
+```bash
+# Make the script executable (first time only)
+chmod +x build_and_push.sh
+
+# Set required environment variables
+export NEXUS_REGISTRY="your.nexus.registry.com"
+export IMAGE_TAG="1.0.0"  # Optional - script can auto-detect version
+export NEXUS_USERNAME="your_username"  # Optional
+export NEXUS_PASSWORD="your_password"  # Optional
+
+# Run the script
+./build_and_push.sh
+```
+
+This script:
+- Uses Docker BuildKit for improved build performance
+- Properly layers the image for optimal caching
+- Handles authentication with the Nexus registry
+- Intelligent versioning:
+  - Uses Git tags if present (supports semantic versioning)
+  - For development branches, creates unique tags with branch name, commit hash and date
+  - Only pushes "latest" tag for main/master branches or semantic versions
+- Pushes all images to the registry in the correct order
+- Provides colorized output with clear error messages
+
+#### Option 2: Manual Build Process
+
+If you prefer to build manually or need more control over the process:
 
 1. **Set up environment variables**:
    ```bash
@@ -295,7 +370,7 @@ For automated builds, integrate these steps into a CI/CD pipeline:
 
 3. **Backup Strategy**: Implement regular database backups:
    ```bash
-   docker-compose exec db pg_dump -U postgres -d postgres > intric_backup_$(date +%Y%m%d).sql
+   docker compose exec db pg_dump -U postgres -d postgres > intric_backup_$(date +%Y%m%d).sql
    ```
 
 4. **Monitoring**: Set up health checks and monitoring for the containers.
@@ -329,12 +404,12 @@ For automated builds, integrate these steps into a CI/CD pipeline:
 1. Update the `IMAGE_TAG` in your `.env` file
 2. Pull the new images:
    ```bash
-   docker-compose pull
+   docker compose pull
    ```
 3. Restart the services:
    ```bash
-   docker-compose down
-   docker-compose up -d
+   docker compose down
+   docker compose up -d
    ```
 
 ### Health Checks (Recommended for Production)
@@ -385,21 +460,21 @@ For higher loads, consider:
 
 1. **Database Connection Failures**:
    - Check `POSTGRES_PASSWORD` is correctly set
-   - Verify database service is healthy: `docker-compose ps db`
-   - Check logs: `docker-compose logs db`
+   - Verify database service is healthy: `docker compose ps db`
+   - Check logs: `docker compose logs db`
 
 2. **Frontend Can't Reach Backend**:
    - Verify network connectivity between containers
    - Check `INTRIC_BACKEND_URL` is set correctly
-   - Check logs: `docker-compose logs frontend`
+   - Check logs: `docker compose logs frontend`
 
 3. **Authentication Issues**:
    - Ensure `JWT_SECRET` is consistent across services
    - Check MobilityGuard settings if using OIDC
 
 4. **Worker Not Processing Tasks**:
-   - Check Redis connection: `docker-compose exec redis redis-cli ping`
-   - Verify worker logs: `docker-compose logs worker`
+   - Check Redis connection: `docker compose exec redis redis-cli ping`
+   - Verify worker logs: `docker compose logs worker`
 
 5. **Registry Authentication Issues**:
    - Check if you can log in to your registry: `docker login ${NEXUS_REGISTRY}`
@@ -416,13 +491,13 @@ When troubleshooting, check logs for specific services:
 
 ```bash
 # View logs for a specific service
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # View logs for multiple services
-docker-compose logs -f backend worker
+docker compose logs -f backend worker
 
 # View recent logs with limited output
-docker-compose logs --tail=100 backend
+docker compose logs --tail=100 backend
 ```
 
 Look for ERROR or WARNING level messages that might indicate configuration or connection issues.

@@ -1,0 +1,81 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import "@intric/ui/styles/css";
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/Inter-Light.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/Inter-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/Inter-Italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/Inter-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/Inter-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/Inter-ExtraBold.woff2") format("woff2");
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  @apply bg-secondary bg-cover bg-bottom bg-no-repeat text-primary;
+}
+
+/* ------------------------------------------ */
+/* Spceial print mode for printing a document */
+/* ------------------------------------------ */
+body.print-mode > .printable-document {
+  display: none;
+}
+
+@media print {
+  body.print-mode > :not(.printable-document) {
+    display: none !important;
+  }
+  body.print-mode > .printable-document {
+    display: block !important;
+  }
+  body.print-mode > .printable-document * {
+    color: black !important;
+  }
+}
+/* ------------------------------------------ */

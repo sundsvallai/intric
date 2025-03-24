@@ -41,6 +41,50 @@ Intric is an open-source AI platform designed to provide equitable access to gen
 <p><i>The Intric platform interface showing various AI assistants</i></p>
 </div>
 
+## 📋 Environment Configuration
+
+Intric uses different environment files depending on your deployment scenario:
+
+### Local Development
+
+1. **Backend Development**: 
+   - Use `backend/.env.local.example` as a template
+   - Copy to `backend/.env` and customize for your development environment
+   - All backend services will use this file when running directly with Poetry
+
+2. **Frontend Development**:
+   - Use `frontend/.env.local.example` as a template
+   - Copy to `frontend/.env` and customize for your development environment
+   - The frontend dev server will use this file
+
+3. **Infrastructure Services**:
+   - The `backend/docker-compose.yml` file sets up infrastructure services (PostgreSQL and Redis)
+   - This supports local development while running application code on your host machine
+
+### Production Deployment
+
+For production deployment:
+
+- Use the root `.env.production.example` as a template
+- Copy to `.env` in the project root
+- Set all required variables including `NEXUS_REGISTRY` to point to your registry
+- Use the root `docker-compose.yml` which includes all services
+
+To quickly set up your environment files:
+
+```bash
+# For production deployment
+cp .env.production.example .env
+
+# For local backend development
+cp backend/.env.local.example backend/.env
+
+# For local frontend development
+cp frontend/.env.local.example frontend/.env
+```
+
+> **Note**: The `.env` files are not committed to the repository for security reasons. The pattern used in `docker-compose.yml` (`${VARIABLE_NAME:-default_value}`) means environment variables will fall back to defaults if not set, making the configuration flexible for different environments.
+
 ## 🚀 Quick Start
 
 The fastest way to deploy Intric in a production environment:
@@ -51,7 +95,7 @@ git clone https://github.com/yourusername/intric.git
 cd intric
 
 # 2. Set up environment variables
-cp .env.example .env
+cp .env.production.example .env
 # Edit .env with your configuration
 
 # 3. Start the services
@@ -89,80 +133,6 @@ For detailed installation instructions, see the [Deployment Guide](docs/deployme
 - **Containerization**: Docker
 - **Orchestration**: Docker Compose
 - **Static File Serving**: Nginx (can be replaced with other web servers)
-
-## Using Environment Files
-
-Intric uses different environment files depending on your workflow:
-
-### Local Development
-
-1. **Backend Development**: 
-   - Use `/backend/.env.example` as a template
-   - Copy to `/backend/.env` and customize for your development environment
-   - All backend services will use this file when run directly with Poetry
-
-2. **Frontend Development**:
-   - Use `/frontend/.env.example` as a template
-   - Copy to `/frontend/.env` and customize for your development environment
-   - The frontend dev server will use this file
-
-### Development with Docker
-
-For testing with Docker during development:
-
-1. **Local testing with Docker**:
-   - Use the root `.env.example` as a template
-   - Copy to `.env` in the project root
-   - Set `NEXUS_REGISTRY=localhost` to use locally built images
-   - Run `docker compose up -d` from the project root
-
-### Production Deployment
-
-For production deployment:
-
-1. **Production configuration**:
-   - Use the root `.env.example` as a template
-   - Copy to `.env` in the project root
-   - Set all required variables including `NEXUS_REGISTRY` to point to your registry
-   - Run `docker compose up -d` from the project root
-
-The pattern used in `docker-compose.yml` (`${VARIABLE_NAME:-default_value}`) means environment variables will fall back to defaults if not set, making the configuration flexible for different environments.
-
-## Environment Configuration
-
-Intric uses different environment files for local development and production deployment:
-
-### Production Deployment
-- `.env.production.example` in root directory
-  - Template for production deployment
-  - Used with docker-compose.yml for containerized deployment
-  - Copy to `.env` when deploying to production
-
-### Local Development
-- `backend/.env.local.example`
-  - Template for local backend development
-  - Used when running backend services directly on host machine
-  - Copy to `backend/.env` for local development
-  
-- `frontend/.env.local.example`
-  - Template for local frontend development
-  - Used when running frontend services in development mode
-  - Copy to `frontend/.env` for local development
-
-To get started:
-
-```bash
-# For production deployment
-cp .env.production.example .env
-
-# For local backend development
-cp backend/.env.local.example backend/.env
-
-# For local frontend development
-cp frontend/.env.local.example frontend/.env
-```
-
-> **Note**: The `.env` files are not committed to the repository for security reasons. Make sure to properly configure your environment variables based on the provided examples.
 
 ## 🏗️ System Architecture
 
@@ -230,7 +200,7 @@ sequenceDiagram
 
 This repository contains two different Docker Compose configurations:
 
-1. **Root docker-compose.yml**: For **production deployment**
+1. **Root docker-compose.yml**: For **production deployment** (includes all services)
 2. **backend/docker-compose.yml**: For **local development** (infrastructure services only)
 
 ### Local Development Setup
@@ -271,7 +241,7 @@ git clone https://github.com/yourusername/intric.git
 cd intric
 
 # 2. Set up environment variables
-cp .env.example .env
+cp .env.production.example .env
 # Edit .env with your specific values
 
 # 3. Pull the Docker images

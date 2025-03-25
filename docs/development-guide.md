@@ -4,7 +4,7 @@
 - **Prerequisites**: Python 3.10+, Node.js 20+, Docker, Poetry, pnpm 8.9.0, Git, libmagic, ffmpeg
 - **Quick Setup**: 
   1. Clone repo
-  2. Start infrastructure (`docker-compose up -d` in backend directory)
+  2. Start infrastructure (`docker compose up -d` in backend directory)
   3. Configure backend:
      ```bash
      cd backend
@@ -116,11 +116,15 @@ sudo apt-get install ffmpeg
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8123
    - API documentation: http://localhost:8123/docs
-   - Default login: user@example.com / Password1!
+   - **Default login credentials**: 
+     - Email: `user@example.com` 
+     - Password: `Password1!`
+
+> **Note**: These login credentials are automatically created when you run the database initialization step.
 
 ### Environment Setup for Different Workflows
 
-Intric provides environment templates for different development and deployment scenarios:
+For detailed information about environment configuration and variables, please refer to the [Configuration Guide](./configuration.md).
 
 #### Local Development Environment
 
@@ -160,129 +164,65 @@ For local development without Docker:
    pnpm -w run dev
    ```
 
-#### Docker Testing During Development
+### Using Devcontainer for Development
 
-To test your changes in Docker containers:
+The project is configured to use a devcontainer, which allows you to develop in a consistent environment using Visual Studio Code and Docker. Follow these steps to get started:
 
-```bash
-# From project root
-cp .env.production.example .env
+1. **Install Prerequisites**:
+   - Ensure you have Docker installed on your machine.
+   - Install Visual Studio Code and the Remote - Containers extension.
 
-# Set local registry and development image tag
-echo "NEXUS_REGISTRY=localhost" >> .env
-echo "IMAGE_TAG=dev" >> .env
+2. **Copy Environment Files**:
+   - Before starting development, you need to set up your environment files:
+     ```bash
+     # In the backend directory
+     cp .env.template .env
 
-# Build images with the build script
-./build_and_push.sh
+     # In the frontend/apps/web directory
+     cp .env.example .env
+     ```
+   - Remember to update these .env files with appropriate values.
 
-# Run the entire stack
-docker compose up -d
-```
+3. **Open the Project in a Devcontainer**:
+   - Open the project folder in Visual Studio Code.
+   - When prompted, or by clicking on the green icon in the bottom-left corner, select "Reopen in Container".
+   - This will build the devcontainer as defined in `.devcontainer/devcontainer.json` and `.devcontainer/docker-compose.yml`.
 
-This approach allows you to test the full stack exactly as it would run in production, but using your local development images.
+4. **Accessing Services**:
+   - The devcontainer setup will automatically forward ports 3000 and 8123, allowing you to access the frontend and any other services running on these ports.
 
-### Building Docker Images
+5. **Post-Create Commands**:
+   - After the container is created, the `postCreateCommand` specified in `.devcontainer/devcontainer.json` will run, setting up the environment.
 
-When you need to build and test your changes in Docker containers or prepare images for staging/production environments, Intric provides two approaches:
+6. **Developing**:
+   - You can now develop as usual within the container. The environment will have all necessary dependencies installed and configured.
 
-#### Option 1: Using the build_and_push.sh Script (Recommended)
+   **Important Notes**:
+   - Database migrations are not run automatically. After the container is created, you'll need to run:
+     ```bash
+     cd backend
+     poetry run python init_db.py
+     ```
+   - You'll need to manually start both the backend and frontend services in separate terminal windows:
 
-The repository includes an optimized build script that follows Docker best practices:
+     For the backend:
+     ```bash
+     cd backend
+     poetry run start
+     ```
 
-```bash
-# Make the script executable (first time only)
-chmod +x build_and_push.sh
+     For the frontend:
+     ```bash
+     cd frontend
+     pnpm run dev
+     ```
 
-# Set required environment variables
-export NEXUS_REGISTRY="your.nexus.registry.com"
-# Optional - script can auto-detect version from Git
-export IMAGE_TAG="dev-$(git rev-parse --short HEAD)"  
-export NEXUS_USERNAME="your_username"  # Optional
-export NEXUS_PASSWORD="your_password"  # Optional
+     Running the frontend and backend in separate terminal windows gives you better control over each service's lifecycle. This makes it easier to restart individual services when needed, such as after installing new dependencies or when troubleshooting issues.
 
-# Run the script
-./build_and_push.sh
-```
+7. **Stopping the Devcontainer**:
+   - To stop the devcontainer, simply close Visual Studio Code or use the "Remote - Containers: Reopen Folder Locally" command.
 
-Benefits of using this script during development:
-- Uses Docker BuildKit for faster, more efficient builds
-- Optimizes caching between builds, resulting in quicker iteration
-- Intelligent versioning strategy:
-  - Automatically uses Git tags if available
-  - For development branches, creates unique tags with branch name, commit hash and date
-  - Only tags as "latest" for main/master branches or semantic versions
-- Provides colorized output with helpful progress and error messages
-
-#### Option 2: Building Images Manually
-
-For more control over the build process:
-
-```bash
-# Backend image
-cd backend
-docker build -t intric/backend:dev .
-
-# Frontend image
-cd ../frontend
-docker build -t intric/frontend:dev .
-```
-
-### Testing Built Images Locally
-
-After building the images, you can test them locally:
-
-```bash
-# Create a local .env file with test configuration
-cp .env.production.example .env
-nano .env  # Edit configuration as needed
-
-# Run the stack using your locally built images
-export NEXUS_REGISTRY="localhost"
-export IMAGE_TAG="dev"
-docker compose up -d
-```
-
-### Environment Configuration
-
-Intric uses clearly named environment files to distinguish between local development and production settings:
-
-#### Local Development Files
-1. `backend/.env.template`
-   - Contains configuration for running backend services directly on your machine
-   - Points to localhost for database and Redis connections
-   - Includes debug-level logging and development-specific settings
-   - **Usage**: Copy to `backend/.env` for local development
-
-2. `frontend/apps/web/.env.example`
-   - Contains frontend development settings
-   - Points to local backend service
-   - Includes development-specific features
-   - **Usage**: Copy to `frontend/apps/web/.env` for local development
-
-#### Production Configuration
-- `.env.production.example` (in root directory)
-  - Contains full stack configuration for containerized deployment
-  - Uses internal Docker network hostnames
-  - Includes all service configurations
-  - **Usage**: Copy to `.env` in root directory for production deployment
-
-### Setting Up Your Development Environment
-
-1. **Backend Setup**:
-   ```bash
-   cd backend
-   cp .env.template .env  # Copy the local development template
-   # Edit .env to set your API keys and other configurations
-   ```
-
-2. **Frontend Setup**:
-   ```bash
-   cd frontend/apps/web
-   cp .env.example .env  # Copy the local development template
-   # Edit .env to configure frontend settings
-   ```
-
-> **Note**: Never commit `.env` files to version control. The example files provide templates with safe default values and clear documentation of required variables.
+This setup ensures that all developers work in the same environment, reducing "it works on my machine" issues.
 
 ## Project Structure
 
@@ -317,6 +257,8 @@ intric/
 ├── docker-compose.yml       # Production deployment configuration
 └── .env.production.example  # Example environment variables
 ```
+
+For details on building Docker images and deployment configuration, please refer to the [Deployment Guide](./deployment-guide.md).
 
 ## Backend Development
 
@@ -361,7 +303,7 @@ Long-running tasks are handled by a worker service using ARQ:
 The database schema is managed with SQLAlchemy and Alembic:
 
 1. Models are defined in each domain's models module
-2. Migrations are stored in `src/intric/database/migrations/`
+2. Migrations are stored in the `alembic/versions/` directory
 3. For vector embeddings, the pgvector extension is used
 
 ### Running Backend Tests
@@ -369,6 +311,18 @@ The database schema is managed with SQLAlchemy and Alembic:
 ```bash
 cd backend
 poetry run pytest
+```
+
+### Database Migrations
+
+We use [alembic](https://alembic.sqlalchemy.org/en/latest/) for our database migrations. When you make changes to the database models, you'll need to generate and apply migrations:
+
+```bash
+# Generate a new migration
+poetry run alembic revision --autogenerate -m "description of changes"
+
+# Apply migrations
+poetry run alembic upgrade head
 ```
 
 ## Frontend Development
@@ -430,6 +384,8 @@ Intric follows domain-driven design principles:
 4. **Repositories** - Data access abstraction
 5. **Domain Services** - Business logic operations
 
+For more details on the domain-driven design approach, see the [Domain-Driven Design document](./domain-driven-design.md).
+
 ### Feature Architecture
 
 The architecture for each feature strives to look like this:
@@ -458,6 +414,14 @@ An example of this can be seen in the `Spaces` feature.
 - **feature_x_models.py** - Definition of the API schema.
 - **feature_x_assembler.py** - Translates domain objects to the API schema, allowing for the schema to change without affecting the shape of the domain object.
 
+### Dependency Injection
+
+We use a [dependency injection framework](https://python-dependency-injector.ets-labs.org/index.html) to handle dependency injection for us. This framework creates all the necessary classes and handles their inter-dependency. This is typically done in the router.
+
+### Connecting Features
+
+Add the router in the main router (located at `src/intric/server/routers/__init__.py`) to connect the endpoints to the application.
+
 ### Microservices
 
 The application is structured as a set of loosely coupled services:
@@ -468,22 +432,7 @@ The application is structured as a set of loosely coupled services:
 4. **Database** - PostgreSQL with pgvector
 5. **Cache** - Redis for task queue and caching
 
-### Communication Flow
-
-Components communicate through these channels:
-
-1. **Frontend to Backend** - HTTP/REST API
-2. **Backend to Worker** - Redis message queue
-3. **Real-time Updates** - Server-Sent Events (SSE)
-4. **Database Access** - SQLAlchemy ORM
-
-### Security Model
-
-The security model includes:
-
-1. **Authentication** - JWT token-based authentication
-2. **Authorization** - Role-based access control
-3. **API Keys** - For programmatic access
+For the complete architectural overview, refer to the [Architecture document](./architecture.md).
 
 ## Testing
 
@@ -545,6 +494,8 @@ Follow these documentation guidelines:
 4. **Code Review** - At least one review is required
 5. **CI Checks** - All tests must pass
 
+For more detailed contribution guidelines, see the [Contributing document](./contributing.md).
+
 ### Coding Standards
 
 1. **Python Code** - Follow PEP 8 style guide
@@ -565,3 +516,7 @@ If you need assistance during development:
 1. **Check Issues** - Look for similar issues on GitHub
 2. **Join Community** - Participate in the development community
 3. **Documentation** - Refer to the project documentation
+
+### Troubleshooting
+
+For common development issues and their solutions, refer to the [Troubleshooting Guide](./troubleshooting.md).

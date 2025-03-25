@@ -1,13 +1,30 @@
 # Intric Development Guide
 
 ## TLDR
-- **Prerequisites**: Python 3.10+, Node.js 16+, Docker, Poetry, pnpm, Git
+- **Prerequisites**: Python 3.10+, Node.js 20+, Docker, Poetry, pnpm 8.9.0, Git, libmagic, ffmpeg
 - **Quick Setup**: 
   1. Clone repo
   2. Start infrastructure (`docker-compose up -d` in backend directory)
-  3. Configure backend (Poetry + database init)
-  4. Configure frontend (pnpm)
-  5. Access at http://localhost:3000 (frontend) and http://localhost:8123 (API)
+  3. Configure backend:
+     ```bash
+     cd backend
+     poetry install
+     cp .env.template .env
+     poetry run python init_db.py
+     poetry run start
+     ```
+  4. Configure frontend:
+     ```bash
+     cd frontend
+     pnpm run setup
+     # Setup .env file in frontend/apps/web directory
+     cd apps/web
+     cp .env.example .env
+     cd ../../
+     pnpm -w run dev
+     ```
+  5. Access at http://localhost:3000 (login: user@example.com / Password1!)
+  6. (Optional) Run worker: `poetry run arq src.intric.worker.arq.WorkerSettings`
 - **Architecture**: Domain-driven design with clearly separated backend and frontend services
 
 This guide provides detailed instructions for setting up a development environment for the Intric platform and contributing to the project.
@@ -26,11 +43,20 @@ This guide provides detailed instructions for setting up a development environme
 
 ### Prerequisites
 - Python 3.10 or higher
-- Node.js 16 or higher
+- Node.js 20 or higher
 - Poetry (Python dependency management)
-- pnpm (Node.js package manager)
+- pnpm 8.9.0 (Node.js package manager)
 - Docker and Docker Compose
 - Git
+- libmagic and ffmpeg
+
+### Additional system requirements
+To be able to use the platform to the fullest, install `libmagic` and `ffmpeg`:
+
+```bash
+sudo apt-get install libmagic1
+sudo apt-get install ffmpeg
+```
 
 ### Initial Setup
 
@@ -43,7 +69,7 @@ This guide provides detailed instructions for setting up a development environme
 2. **Set up infrastructure services**:
    ```bash
    cd backend
-   docker-compose up -d
+   docker compose up -d
    ```
    This starts PostgreSQL with pgvector extension and Redis for local development.
 
@@ -55,13 +81,13 @@ This guide provides detailed instructions for setting up a development environme
    poetry install
    
    # Copy environment file and edit as needed
-   cp .env.example .env
+   cp .env.template .env
    
    # Initialize database (first time only)
-   poetry run python -m app.database.init
+   poetry run python init_db.py
    
    # Start the backend service
-   poetry run uvicorn app.main:app --reload --port 8123
+   poetry run start
    ```
 
 4. **Set up frontend**:
@@ -69,19 +95,28 @@ This guide provides detailed instructions for setting up a development environme
    cd frontend
    
    # Install dependencies
-   pnpm install
+   pnpm run setup
    
    # Copy environment file and edit as needed
+   cd apps/web
    cp .env.example .env
+   cd ../../
    
    # Start the frontend development server
-   pnpm dev
+   pnpm -w run dev
    ```
 
-5. **Access the application**:
+5. **Start the worker (optional)**:
+   ```bash
+   cd backend
+   poetry run arq src.intric.worker.arq.WorkerSettings
+   ```
+
+6. **Access the application**:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8123
    - API documentation: http://localhost:8123/docs
+   - Default login: user@example.com / Password1!
 
 ### Environment Setup for Different Workflows
 
@@ -96,17 +131,17 @@ For local development without Docker:
    cd backend
    
    # Copy environment file
-   cp .env.example .env
+   cp .env.template .env
    
    # Customize your local environment variables
    # Note: This configuration uses localhost for database and Redis
    nano .env
    
    # Start infrastructure services only
-   docker-compose up -d
+   docker compose up -d
    
    # Run backend directly with Poetry
-   poetry run uvicorn intric.server.main:app --reload --port 8123
+   poetry run start
    ```
 
 2. **Frontend Development**:
@@ -114,13 +149,15 @@ For local development without Docker:
    cd frontend
    
    # Copy environment file
+   cd apps/web
    cp .env.example .env
    
    # Customize your local environment variables
    nano .env
+   cd ../../
    
    # Start frontend development server
-   pnpm dev
+   pnpm -w run dev
    ```
 
 #### Docker Testing During Development
@@ -129,7 +166,7 @@ To test your changes in Docker containers:
 
 ```bash
 # From project root
-cp .env.example .env
+cp .env.production.example .env
 
 # Set local registry and development image tag
 echo "NEXUS_REGISTRY=localhost" >> .env
@@ -196,7 +233,7 @@ After building the images, you can test them locally:
 
 ```bash
 # Create a local .env file with test configuration
-cp .env.example .env
+cp .env.production.example .env
 nano .env  # Edit configuration as needed
 
 # Run the stack using your locally built images
@@ -210,17 +247,17 @@ docker compose up -d
 Intric uses clearly named environment files to distinguish between local development and production settings:
 
 #### Local Development Files
-1. `backend/.env.local.example`
+1. `backend/.env.template`
    - Contains configuration for running backend services directly on your machine
    - Points to localhost for database and Redis connections
    - Includes debug-level logging and development-specific settings
    - **Usage**: Copy to `backend/.env` for local development
 
-2. `frontend/.env.local.example`
+2. `frontend/apps/web/.env.example`
    - Contains frontend development settings
    - Points to local backend service
    - Includes development-specific features
-   - **Usage**: Copy to `frontend/.env` for local development
+   - **Usage**: Copy to `frontend/apps/web/.env` for local development
 
 #### Production Configuration
 - `.env.production.example` (in root directory)
@@ -234,14 +271,14 @@ Intric uses clearly named environment files to distinguish between local develop
 1. **Backend Setup**:
    ```bash
    cd backend
-   cp .env.local.example .env  # Copy the local development template
+   cp .env.template .env  # Copy the local development template
    # Edit .env to set your API keys and other configurations
    ```
 
 2. **Frontend Setup**:
    ```bash
-   cd frontend
-   cp .env.local.example .env  # Copy the local development template
+   cd frontend/apps/web
+   cp .env.example .env  # Copy the local development template
    # Edit .env to configure frontend settings
    ```
 
@@ -255,29 +292,30 @@ The repository follows a domain-driven organization pattern:
 
 ```
 intric/
-├── backend/                # Backend Python application
-│   ├── src/                # Source code
-│   │   └── intric/         # Main package
-│   │       ├── server/     # API server implementation
-│   │       ├── database/   # Database models and migrations
-│   │       ├── assistants/ # Assistants domain
-│   │       ├── sessions/   # Chat sessions domain
-│   │       ├── spaces/     # Collaborative spaces domain
-│   │       ├── files/      # File handling domain
-│   │       ├── users/      # User management domain
-│   │       ├── worker/     # Background task workers
-│   │       └── ...         # Other domain modules
-│   ├── docker-compose.yml  # Development infrastructure
-│   └── pyproject.toml      # Python dependencies
-├── frontend/               # Frontend SvelteKit application
-│   ├── src/                # Source code
-│   │   ├── lib/            # Reusable components and utilities
-│   │   │   ├── components/ # UI components
-│   │   │   └── stores/     # State management stores
-│   │   └── routes/         # Application routes
-│   └── package.json        # Node.js dependencies
-├── docker-compose.yml      # Production deployment configuration
-└── .env.example            # Example environment variables
+├── backend/                 # Backend Python application
+│   ├── src/                 # Source code
+│   │   └── intric/          # Main package
+│   │       ├── server/      # API server implementation
+│   │       ├── database/    # Database models and migrations
+│   │       ├── assistants/  # Assistants domain
+│   │       ├── sessions/    # Chat sessions domain
+│   │       ├── spaces/      # Collaborative spaces domain
+│   │       ├── files/       # File handling domain
+│   │       ├── users/       # User management domain
+│   │       ├── worker/      # Background task workers
+│   │       └── ...          # Other domain modules
+│   ├── docker-compose.yml   # Development infrastructure
+│   └── pyproject.toml       # Python dependencies
+├── frontend/                # Frontend SvelteKit application
+│   ├── apps/                # Application code
+│   │   └── web/             # Main web application
+│   │       ├── src/         # Source code
+│   │       │   ├── lib/     # Reusable components and utilities
+│   │       │   └── routes/  # Application routes
+│   │       └── .env.example # Environment template
+│   └── package.json         # Node.js dependencies
+├── docker-compose.yml       # Production deployment configuration
+└── .env.production.example  # Example environment variables
 ```
 
 ## Backend Development
@@ -297,18 +335,18 @@ intric/
 
 The backend follows domain-driven design principles with a clear separation of concerns:
 
-1. **Domain Entities** (`app/domain_name/domain_name.py`) - Core business models
-2. **Repositories** (`app/domain_name/domain_name_repo.py`) - Data access layer
-3. **Services** (`app/domain_name/domain_name_service.py`) - Business logic
-4. **API Routes** (`app/domain_name/api/domain_name_router.py`) - HTTP endpoints
+1. **Domain Entities** (`src/intric/domain_name/domain_name.py`) - Core business models
+2. **Repositories** (`src/intric/domain_name/domain_name_repo.py`) - Data access layer
+3. **Services** (`src/intric/domain_name/domain_name_service.py`) - Business logic
+4. **API Routes** (`src/intric/domain_name/api/domain_name_router.py`) - HTTP endpoints
 
 #### API Structure
 
 The API layer is organized by domain:
 
-1. **API Models** (`app/domain_name/api/domain_name_models.py`) - Request/response schemas
-2. **API Routes** (`app/domain_name/api/domain_name_router.py`) - API endpoints
-3. **Assemblers** (`app/domain_name/api/domain_name_assembler.py`) - Transform between domain and API models
+1. **API Models** (`src/intric/domain_name/api/domain_name_models.py`) - Request/response schemas
+2. **API Routes** (`src/intric/domain_name/api/domain_name_router.py`) - API endpoints
+3. **Assemblers** (`src/intric/domain_name/api/domain_name_assembler.py`) - Transform between domain and API models
 
 #### Background Processing
 
@@ -323,7 +361,7 @@ Long-running tasks are handled by a worker service using ARQ:
 The database schema is managed with SQLAlchemy and Alembic:
 
 1. Models are defined in each domain's models module
-2. Migrations are stored in `app/database/migrations/`
+2. Migrations are stored in `src/intric/database/migrations/`
 3. For vector embeddings, the pgvector extension is used
 
 ### Running Backend Tests
@@ -391,6 +429,34 @@ Intric follows domain-driven design principles:
 3. **Entities and Value Objects** - Domain models with identity or value semantics
 4. **Repositories** - Data access abstraction
 5. **Domain Services** - Business logic operations
+
+### Feature Architecture
+
+The architecture for each feature strives to look like this:
+
+```
+feature_x/
+├── api/
+│   ├── feature_x_models.py
+│   ├── feature_x_assembler.py
+│   └── feature_x_router.py
+├── feature_x.py
+├── feature_x_repo.py
+├── feature_x_service.py
+└── feature_x_factory.py
+```
+
+An example of this can be seen in the `Spaces` feature.
+
+#### Function of each module
+
+- **feature_x.py** - The main class, the main domain object. Domain logic pertaining to how the feature works should live here.
+- **feature_x_repo.py** - Dependency inversion of database dependency. Should input a `Feature_x` class (or an `id`) and return that same class.
+- **feature_x_service.py** - Responsible for connecting this domain object with other related ones.
+- **feature_x_factory.py** - Factory class. Creates the domain object.
+- **feature_x_router.py** - Specifies the endpoints.
+- **feature_x_models.py** - Definition of the API schema.
+- **feature_x_assembler.py** - Translates domain objects to the API schema, allowing for the schema to change without affecting the shape of the domain object.
 
 ### Microservices
 

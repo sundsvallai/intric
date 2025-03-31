@@ -10,7 +10,7 @@
 [![Made for: Public Sector](https://img.shields.io/badge/Made%20for-Public%20Sector-orange)](https://github.com/cagritest123/intric-release)
 [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](docs/contributing.md)
 
-[Features](#features) • [Quick Start](#quick-start) • [Documentation](docs/) • [Architecture](docs/architecture.md) • [Development](docs/development-guide.md) • [Deployment](docs/deployment-guide.md) • [Contributing](docs/contributing.md)
+[Features](#features) • [Quick Start](#quick-start) • [Documentation](docs/) • [Architecture](docs/architecture.md) • [Development](docs/development-guide.md) • [Configuration](docs/configuration.md) • [Deployment](docs/deployment-guide.md) • [Contributing](docs/contributing.md)
 
 </div>
 

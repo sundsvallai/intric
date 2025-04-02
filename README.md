@@ -58,14 +58,14 @@ Get Intric running locally in just a few minutes:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/intric.git
-cd intric
+git clone (https://github.com/cagritest123/intric-docs.git
+cd intric-docs
 
 # 2. Set up environment files
 # For backend development
-cp backend/.env.template backend/.env
+cp backend/.env.local.example backend/.env
 # For frontend development
-cp frontend/apps/web/.env.example frontend/apps/web/.env
+cp frontend/apps/web/.env.local.example frontend/apps/web/.env
 
 # 3. Start infrastructure services (PostgreSQL and Redis)
 cd backend
@@ -148,7 +148,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # Security
-JWT_SECRET=your_development_secret_key
+JWT_SECRET=1234
 
 # Feature flags
 USING_ACCESS_MANAGEMENT=False
@@ -162,7 +162,7 @@ For frontend, the `frontend/apps/web/.env` file should contain:
 
 ```
 INTRIC_BACKEND_URL=http://localhost:8123
-JWT_SECRET=your_development_secret_key
+JWT_SECRET=1234
 ```
 
 ### Environment File Setup
@@ -191,8 +191,8 @@ JWT_SECRET=your_development_secret_key
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/intric.git
-cd intric
+git clone https://github.com/cagritest123/intric-docs.git
+cd intric-docs
 
 # 2. Set up environment variables
 cp .env.production.example .env

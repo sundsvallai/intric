@@ -43,6 +43,17 @@ Intric is an open-source AI platform designed to provide equitable access to gen
 
 ## 🚀 Quick Start (Local Development)
 
+### Prerequisites
+- Python 3.10 or higher
+- Node.js v20 or higher
+- Docker
+- Required system libraries: `libmagic1` and `ffmpeg`
+
+```bash
+# Install required system libraries (Ubuntu/Debian)
+sudo apt-get install libmagic1 ffmpeg
+```
+
 Get Intric running locally in just a few minutes:
 
 ```bash
@@ -50,28 +61,42 @@ Get Intric running locally in just a few minutes:
 git clone https://github.com/yourusername/intric.git
 cd intric
 
-# 2. Start infrastructure services (PostgreSQL and Redis)
+# 2. Set up environment files
+# For backend development
+cp backend/.env.template backend/.env
+# For frontend development
+cp frontend/apps/web/.env.example frontend/apps/web/.env
+
+# 3. Start infrastructure services (PostgreSQL and Redis)
 cd backend
 docker compose up -d
 
-# 3. Setup environment and dependencies (first time only)
-cd ..
-chmod +x scripts/post-create.sh scripts/post-start.sh
-./scripts/post-create.sh
-./scripts/post-start.sh
+# 4. Install backend dependencies
+# Install Poetry if not already installed
+pip install poetry
+poetry install
 
-# 4. Initialize the database (first time only)
-cd backend
+# 5. Initialize the database (first time only)
 poetry run python init_db.py
 
-# 5. Start the backend (in one terminal)
+# 6. Start the backend (in one terminal)
 poetry run start
 # Or alternatively:
 poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
 
-# 6. Start the frontend (in another terminal)
+# 7. (Optional) Start the worker (in another terminal)
+cd backend
+poetry run arq src.intric.worker.arq.WorkerSettings
+
+# 8. Install frontend dependencies (in another terminal)
 cd ../frontend
-pnpm run dev
+# Install pnpm if not already installed
+npm install -g pnpm@8.9.0
+# Run setup script
+pnpm run setup
+
+# 9. Start the frontend
+pnpm -w run dev
 ```
 
 The application will be available at:
@@ -86,92 +111,6 @@ Login with:
 
 - **Database Connection Issues**: Verify your backend `.env` file has the correct connection details for PostgreSQL and Redis, pointing to `localhost` with the correct ports.
 - **Frontend Not Connecting to Backend**: Ensure your frontend environment file has `INTRIC_BACKEND_URL=http://localhost:8123`.
-
-<details>
-<summary><b>Manual Setup Process (Step by Step)</b></summary>
-
-If you prefer to understand each step or need more control over the setup process:
-
-#### 1. Environment File Setup
-
-```bash
-# For backend development
-cp backend/.env.local.example backend/.env
-
-# For frontend development
-cp frontend/apps/web/.env.local.example frontend/apps/web/.env
-```
-
-Edit these files to customize for your development environment:
-
-- In `backend/.env`, make sure to set:
-  ```
-  POSTGRES_HOST=localhost
-  POSTGRES_PORT=5432
-  REDIS_HOST=localhost
-  REDIS_PORT=6379
-  JWT_SECRET=your_development_secret_key
-  OPENAI_API_KEY=your_openai_key  # If using OpenAI
-  ```
-
-- In `frontend/apps/web/.env`, set:
-  ```
-  INTRIC_BACKEND_URL=http://localhost:8123
-  JWT_SECRET=your_development_secret_key
-  ```
-
-#### 2. Start Infrastructure Services
-
-```bash
-cd backend
-docker compose up -d
-```
-
-This starts PostgreSQL and Redis containers that your application will connect to.
-
-#### 3. Backend Setup
-
-```bash
-# Install Poetry if not already installed
-pip install poetry
-
-# Install backend dependencies
-cd backend
-poetry install
-
-# Initialize the database (first time only)
-poetry run python init_db.py
-
-# Start the backend service
-poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
-```
-
-#### 4. Frontend Setup
-
-```bash
-# Install pnpm if not already installed
-npm install -g pnpm@8.9.0
-
-# Install frontend dependencies
-cd frontend
-pnpm install
-
-# Start the frontend service
-pnpm run dev
-```
-
-#### 5. Stopping Services
-
-When you're done with development:
-
-```bash
-# Stop infrastructure services
-cd backend
-docker compose down
-
-# Stop backend and frontend by pressing Ctrl+C in their respective terminals
-```
-</details>
 
 ### Development Architecture
 

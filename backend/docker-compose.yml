@@ -1,10 +1,12 @@
 services:
   db:
-    image: pgvector/pgvector:pg16@sha256:8fd720a9b6a49e70ca90fc0d97c2efea45c70d58b1727b92fcaecd05fcd87e40
+    image: pgvector/pgvector:pg16
     ports:
-      - 5432:5432
-    env_file:
-      - ./.env
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,9 +17,9 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:8.0-M04-alpine3.21@sha256:f3574f3ce99949bed546a715f86cdcdc44bca514bd5cf6484591ef1b2153e8d3
+    image: redis:alpine
     ports:
-      - 6379:6379
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

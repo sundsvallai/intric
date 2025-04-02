@@ -41,53 +41,214 @@ Intric is an open-source AI platform designed to provide equitable access to gen
 <p><i>The Intric platform interface showing various AI assistants</i></p>
 </div>
 
+## 🚀 Quick Start (Local Development)
+
+Get Intric running locally in just a few minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/intric.git
+cd intric
+
+# 2. Start infrastructure services (PostgreSQL and Redis)
+cd backend
+docker compose up -d
+
+# 3. Setup environment and dependencies (first time only)
+cd ..
+chmod +x scripts/post-create.sh scripts/post-start.sh
+./scripts/post-create.sh
+./scripts/post-start.sh
+
+# 4. Initialize the database (first time only)
+cd backend
+poetry run python init_db.py
+
+# 5. Start the backend (in one terminal)
+poetry run start
+# Or alternatively:
+poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
+
+# 6. Start the frontend (in another terminal)
+cd ../frontend
+pnpm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8123
+
+Login with:
+- Email: user@example.com
+- Password: Password1!
+
+### Common Issues and Troubleshooting
+
+- **Database Connection Issues**: Verify your backend `.env` file has the correct connection details for PostgreSQL and Redis, pointing to `localhost` with the correct ports.
+- **Frontend Not Connecting to Backend**: Ensure your frontend environment file has `INTRIC_BACKEND_URL=http://localhost:8123`.
+
+<details>
+<summary><b>Manual Setup Process (Step by Step)</b></summary>
+
+If you prefer to understand each step or need more control over the setup process:
+
+#### 1. Environment File Setup
+
+```bash
+# For backend development
+cp backend/.env.local.example backend/.env
+
+# For frontend development
+cp frontend/apps/web/.env.local.example frontend/apps/web/.env
+```
+
+Edit these files to customize for your development environment:
+
+- In `backend/.env`, make sure to set:
+  ```
+  POSTGRES_HOST=localhost
+  POSTGRES_PORT=5432
+  REDIS_HOST=localhost
+  REDIS_PORT=6379
+  JWT_SECRET=your_development_secret_key
+  OPENAI_API_KEY=your_openai_key  # If using OpenAI
+  ```
+
+- In `frontend/apps/web/.env`, set:
+  ```
+  INTRIC_BACKEND_URL=http://localhost:8123
+  JWT_SECRET=your_development_secret_key
+  ```
+
+#### 2. Start Infrastructure Services
+
+```bash
+cd backend
+docker compose up -d
+```
+
+This starts PostgreSQL and Redis containers that your application will connect to.
+
+#### 3. Backend Setup
+
+```bash
+# Install Poetry if not already installed
+pip install poetry
+
+# Install backend dependencies
+cd backend
+poetry install
+
+# Initialize the database (first time only)
+poetry run python init_db.py
+
+# Start the backend service
+poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
+```
+
+#### 4. Frontend Setup
+
+```bash
+# Install pnpm if not already installed
+npm install -g pnpm@8.9.0
+
+# Install frontend dependencies
+cd frontend
+pnpm install
+
+# Start the frontend service
+pnpm run dev
+```
+
+#### 5. Stopping Services
+
+When you're done with development:
+
+```bash
+# Stop infrastructure services
+cd backend
+docker compose down
+
+# Stop backend and frontend by pressing Ctrl+C in their respective terminals
+```
+</details>
+
+### Development Architecture
+
+In the local development setup:
+- Infrastructure services (PostgreSQL and Redis) run in Docker containers
+- Application services (backend and frontend) run directly on your host machine
+- This approach gives you fast hot reloading and easier debugging during development
+
+For detailed development documentation, see the [Development Guide](docs/development-guide.md).
+
 ## 📋 Environment Configuration
 
 Intric uses different environment files depending on your deployment scenario:
 
-### Local Development
+### Local Development Environment Variables
 
-1. **Backend Development**: 
-   - Use `backend/.env.local.example` as a template
-   - Copy to `backend/.env` and customize for your development environment
-   - All backend services will use this file when running directly with Poetry
+For local development, the backend `.env` file contains these important settings:
 
-2. **Frontend Development**:
-   - Use `frontend/.env.local.example` as a template
-   - Copy to `frontend/.env` and customize for your development environment
-   - The frontend dev server will use this file
+```
+# API keys and model URLs
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
+AZURE_API_KEY=your_azure_key
+AZURE_MODEL_DEPLOYMENT=
+AZURE_ENDPOINT=
+AZURE_API_VERSION=
 
-3. **Infrastructure Services**:
-   - The `backend/docker-compose.yml` file sets up infrastructure services (PostgreSQL and Redis)
-   - This supports local development while running application code on your host machine
+# Infrastructure dependencies
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_PORT=5432
+POSTGRES_HOST=localhost
+POSTGRES_DB=postgres
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-### Production Deployment
+# Security
+JWT_SECRET=your_development_secret_key
 
-For production deployment:
+# Feature flags
+USING_ACCESS_MANAGEMENT=False
+USING_AZURE_MODELS=False
 
-- Use the root `.env.production.example` as a template
-- Copy to `.env` in the project root
-- Set all required variables including `NEXUS_REGISTRY` to point to your registry
-- Use the root `docker-compose.yml` which includes all services
-
-To quickly set up your environment files:
-
-```bash
-# For production deployment
-cp .env.production.example .env
-
-# For local backend development
-cp backend/.env.local.example backend/.env
-
-# For local frontend development
-cp frontend/.env.local.example frontend/.env
+# Log level
+LOGLEVEL=DEBUG
 ```
 
-> **Note**: The `.env` files are not committed to the repository for security reasons. The pattern used in `docker-compose.yml` (`${VARIABLE_NAME:-default_value}`) means environment variables will fall back to defaults if not set, making the configuration flexible for different environments.
+For frontend, the `frontend/apps/web/.env` file should contain:
 
-## 🚀 Quick Start
+```
+INTRIC_BACKEND_URL=http://localhost:8123
+JWT_SECRET=your_development_secret_key
+```
 
-The fastest way to deploy Intric in a production environment:
+### Environment File Setup
+
+- **Local Development**: 
+  - The setup scripts will create these files automatically from templates
+  - `backend/.env` - Used by the backend services
+  - `frontend/apps/web/.env` - Used by the frontend dev server
+
+- **Production Deployment**:
+  - `/.env` in the project root directory
+  - Set all required variables including `NEXUS_REGISTRY` to point to your registry
+
+> **Note**: The `.env` files are not committed to the repository for security reasons. The Docker Compose files use the pattern `${VARIABLE_NAME:-default_value}` so variables will fall back to defaults if not set.
+
+## 🌐 Production Deployment
+
+### Prerequisites
+- Linux server with Docker Engine 20.10.x or later
+- Docker Compose 2.x or later
+- Minimum 4GB RAM recommended (1GB minimum)
+- Sufficient disk space for database storage (~50GB recommended)
+- Outbound internet connectivity to LLM APIs (not required for on-prem deployment if you run models locally)
+
+### Quick Deployment
 
 ```bash
 # 1. Clone the repository
@@ -96,18 +257,34 @@ cd intric
 
 # 2. Set up environment variables
 cp .env.production.example .env
-# Edit .env with your configuration
+# Edit .env with your specific values
 
-# 3. Start the services
-docker-compose up -d
+# 3. Pull the Docker images
+docker compose pull
 
-# 4. Initialize the database (first time only)
-docker-compose --profile init up db-init
+# 4. Start the services
+docker compose up -d
 
-# 5. Access Intric at http://localhost:3000
+# 5. Initialize the database (first time only)
+docker compose --profile init up db-init
 ```
 
-For detailed installation instructions, see the [Deployment Guide](docs/deployment-guide.md).
+### Key Production Environment Variables
+
+```
+# Required
+NEXUS_REGISTRY=your.nexus.registry.com
+IMAGE_TAG=version_to_deploy
+POSTGRES_PASSWORD=secure_password
+JWT_SECRET=secure_random_string
+
+# LLM API keys (at least one is required)
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
+AZURE_API_KEY=your_azure_key
+```
+
+For comprehensive deployment instructions, see the [Deployment Guide](docs/deployment-guide.md).
 
 ## 📚 Documentation
 
@@ -197,85 +374,6 @@ sequenceDiagram
 ```
 
 </details>
-
-## 🧑‍💻 Development
-
-### Development vs Production Configuration
-
-This repository contains two different Docker Compose configurations:
-
-1. **Root docker-compose.yml**: For **production deployment** (includes all services)
-2. **backend/docker-compose.yml**: For **local development** (infrastructure services only)
-
-### Local Development Setup
-
-```bash
-# Start infrastructure services (PostgreSQL and Redis)
-cd backend
-docker-compose up -d
-
-# Install backend dependencies
-poetry install
-
-# Run backend services
-poetry run uvicorn app.main:app --reload
-
-# In another terminal, set up frontend
-cd frontend
-pnpm install
-pnpm dev
-```
-
-For detailed development instructions, including project structure, testing, and contributing guidelines, see the [Development Guide](docs/development-guide.md).
-
-## 🌐 Production Deployment Guide
-
-### Prerequisites
-- Linux server with Docker Engine 20.10.x or later
-- Docker Compose 2.x or later
-- Minimum 4GB RAM recommended (1GB minimum)
-- Sufficient disk space for database storage (~50GB recommended)
-- Outbound internet connectivity to LLM APIs (not required for on-prem deployment if you run models locally)
-
-### Quick Deployment
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/yourusername/intric.git
-cd intric
-
-# 2. Set up environment variables
-cp .env.production.example .env
-# Edit .env with your specific values
-
-# 3. Pull the Docker images
-docker-compose pull
-
-# 4. Start the services
-docker-compose up -d
-
-# 5. Initialize the database (first time only)
-docker-compose --profile init up db-init
-```
-
-For comprehensive deployment instructions, including all configuration options, Nexus registry setup, and troubleshooting, see the [Deployment Guide](docs/deployment-guide.md).
-
-### Key Environment Variables
-
-The most important environment variables to configure:
-
-```
-# Required
-NEXUS_REGISTRY=your.nexus.registry.com
-IMAGE_TAG=version_to_deploy
-POSTGRES_PASSWORD=secure_password
-JWT_SECRET=secure_random_string
-
-# LLM API keys (at least one is required)
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-AZURE_API_KEY=your_azure_key
-```
 
 ## 👥 Community
 

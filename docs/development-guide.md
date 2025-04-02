@@ -2,29 +2,32 @@
 
 ## TLDR
 - **Prerequisites**: Python 3.10+, Node.js 20+, Docker, Poetry, pnpm 8.9.0, Git, libmagic, ffmpeg
-- **Quick Setup**: 
+- **Quick Setup with Scripts**: 
   1. Clone repo
   2. Start infrastructure (`docker compose up -d` in backend directory)
-  3. Configure backend:
+  3. Run setup scripts:
+     ```bash
+     chmod +x scripts/post-create.sh scripts/post-start.sh
+     ./scripts/post-create.sh
+     ./scripts/post-start.sh
+     ```
+  4. Initialize database (first time only):
      ```bash
      cd backend
-     poetry install
-     cp .env.template .env
      poetry run python init_db.py
-     poetry run start
      ```
-  4. Configure frontend:
+  5. Start the services:
      ```bash
+     # Terminal 1 - Backend
+     cd backend
+     poetry run start
+     
+     # Terminal 2 - Frontend
      cd frontend
-     pnpm run setup
-     # Setup .env file in frontend/apps/web directory
-     cd apps/web
-     cp .env.example .env
-     cd ../../
-     pnpm -w run dev
+     pnpm run dev
      ```
-  5. Access at http://localhost:3000 (login: user@example.com / Password1!)
-  6. (Optional) Run worker: `poetry run arq src.intric.worker.arq.WorkerSettings`
+  6. Access at http://localhost:3000 (login: user@example.com / Password1!)
+  7. (Optional) Run worker: `poetry run arq intric.worker.arq.WorkerSettings`
 - **Architecture**: Domain-driven design with clearly separated backend and frontend services
 
 This guide provides detailed instructions for setting up a development environment for the Intric platform and contributing to the project.
@@ -60,6 +63,60 @@ sudo apt-get install ffmpeg
 
 ### Initial Setup
 
+#### Automated Setup with Scripts
+
+The fastest way to set up your development environment is using the provided scripts:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/intric.git
+   cd intric
+   ```
+
+2. **Start infrastructure services**:
+   ```bash
+   cd backend
+   docker compose up -d
+   cd ..
+   ```
+
+3. **Run the setup scripts**:
+   ```bash
+   chmod +x scripts/post-create.sh scripts/post-start.sh
+   ./scripts/post-create.sh  # Installs dependencies
+   ./scripts/post-start.sh   # Sets up environment files
+   ```
+
+4. **Initialize the database** (first time only):
+   ```bash
+   cd backend
+   poetry run python init_db.py
+   ```
+
+5. **Start the backend service** (in one terminal):
+   ```bash
+   cd backend
+   poetry run start
+   # Or alternatively:
+   poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
+   ```
+
+6. **Start the frontend service** (in another terminal):
+   ```bash
+   cd frontend
+   pnpm run dev
+   ```
+
+7. **Start the worker** (optional, in a third terminal):
+   ```bash
+   cd backend
+   poetry run arq intric.worker.arq.WorkerSettings
+   ```
+
+#### Manual Setup Process
+
+If you prefer to understand each step or the scripts don't work for you:
+
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/yourusername/intric.git
@@ -71,7 +128,6 @@ sudo apt-get install ffmpeg
    cd backend
    docker compose up -d
    ```
-   This starts PostgreSQL with pgvector extension and Redis for local development.
 
 3. **Set up backend**:
    ```bash
@@ -81,7 +137,7 @@ sudo apt-get install ffmpeg
    poetry install
    
    # Copy environment file and edit as needed
-   cp .env.template .env
+   cp .env.local.example .env
    
    # Initialize database (first time only)
    poetry run python init_db.py
@@ -95,74 +151,59 @@ sudo apt-get install ffmpeg
    cd frontend
    
    # Install dependencies
-   pnpm run setup
+   pnpm install
    
    # Copy environment file and edit as needed
    cd apps/web
-   cp .env.example .env
+   cp .env.local.example .env
    cd ../../
    
    # Start the frontend development server
-   pnpm -w run dev
+   pnpm run dev
    ```
 
-5. **Start the worker (optional)**:
-   ```bash
-   cd backend
-   poetry run arq src.intric.worker.arq.WorkerSettings
-   ```
+### Accessing the Application
 
-6. **Access the application**:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8123
-   - API documentation: http://localhost:8123/docs
-   - **Default login credentials**: 
-     - Email: `user@example.com` 
-     - Password: `Password1!`
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8123
+- API documentation: http://localhost:8123/docs
+- **Default login credentials**: 
+  - Email: `user@example.com` 
+  - Password: `Password1!`
 
 > **Note**: These login credentials are automatically created when you run the database initialization step.
 
-### Environment Setup for Different Workflows
+### Environment Files
 
-For detailed information about environment configuration and variables, please refer to the [Configuration Guide](./configuration.md).
+Intric uses different environment files for different components:
 
-#### Local Development Environment
-
-For local development without Docker:
-
-1. **Backend Development**:
-   ```bash
-   cd backend
-   
-   # Copy environment file
-   cp .env.template .env
-   
-   # Customize your local environment variables
-   # Note: This configuration uses localhost for database and Redis
-   nano .env
-   
-   # Start infrastructure services only
-   docker compose up -d
-   
-   # Run backend directly with Poetry
-   poetry run start
-   ```
+1. **Backend Development**: 
+   - File: `backend/.env`
+   - Template: `backend/.env.local.example`
+   - Key settings:
+     ```
+     POSTGRES_HOST=localhost
+     POSTGRES_PORT=5432
+     REDIS_HOST=localhost
+     REDIS_PORT=6379
+     JWT_SECRET=your_development_secret_key
+     OPENAI_API_KEY=your_openai_key  # If using OpenAI
+     ```
 
 2. **Frontend Development**:
-   ```bash
-   cd frontend
-   
-   # Copy environment file
-   cd apps/web
-   cp .env.example .env
-   
-   # Customize your local environment variables
-   nano .env
-   cd ../../
-   
-   # Start frontend development server
-   pnpm -w run dev
-   ```
+   - File: `frontend/apps/web/.env`
+   - Template: `frontend/apps/web/.env.local.example`
+   - Key settings:
+     ```
+     INTRIC_BACKEND_URL=http://localhost:8123
+     JWT_SECRET=your_development_secret_key
+     ```
+
+### Common Issues and Troubleshooting
+
+- **Database Connection Issues**: Verify your backend `.env` file has the correct connection details for PostgreSQL and Redis, pointing to `localhost` with the correct ports.
+
+- **Frontend Not Connecting to Backend**: Ensure your frontend environment file has `INTRIC_BACKEND_URL=http://localhost:8123`.
 
 ### Using Devcontainer for Development
 
@@ -176,10 +217,10 @@ The project is configured to use a devcontainer, which allows you to develop in 
    - Before starting development, you need to set up your environment files:
      ```bash
      # In the backend directory
-     cp .env.template .env
+     cp .env.local.example .env
 
      # In the frontend/apps/web directory
-     cp .env.example .env
+     cp .env.local.example .env
      ```
    - Remember to update these .env files with appropriate values.
 
@@ -252,8 +293,11 @@ intric/
 │   │       ├── src/         # Source code
 │   │       │   ├── lib/     # Reusable components and utilities
 │   │       │   └── routes/  # Application routes
-│   │       └── .env.example # Environment template
+│   │       └── .env.local.example # Environment template
 │   └── package.json         # Node.js dependencies
+├── scripts/                 # Setup and utility scripts
+│   ├── post-create.sh       # Setup dependencies
+│   └── post-start.sh        # Setup environment
 ├── docker-compose.yml       # Production deployment configuration
 └── .env.production.example  # Example environment variables
 ```

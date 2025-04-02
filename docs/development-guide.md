@@ -2,18 +2,24 @@
 
 ## TLDR
 - **Prerequisites**: Python 3.10+, Node.js 20+, Docker, Poetry, pnpm 8.9.0, Git, libmagic, ffmpeg
-- **Quick Setup with Scripts**: 
+- **Quick Setup**: 
   1. Clone repo
-  2. Start infrastructure (`docker compose up -d` in backend directory)
-  3. Run setup scripts:
+  2. Set up environment files:
      ```bash
-     chmod +x scripts/post-create.sh scripts/post-start.sh
-     ./scripts/post-create.sh
-     ./scripts/post-start.sh
+     # For backend
+     cp backend/.env.local.example backend/.env
+     # For frontend
+     cp frontend/apps/web/.env.local.example frontend/apps/web/.env
      ```
-  4. Initialize database (first time only):
+  3. Start infrastructure services:
      ```bash
      cd backend
+     docker compose up -d
+     ```
+  4. Set up backend:
+     ```bash
+     cd backend
+     poetry install
      poetry run python init_db.py
      ```
   5. Start the services:
@@ -24,6 +30,7 @@
      
      # Terminal 2 - Frontend
      cd frontend
+     pnpm install
      pnpm run dev
      ```
   6. Access at http://localhost:3000 (login: user@example.com / Password1!)
@@ -63,81 +70,36 @@ sudo apt-get install ffmpeg
 
 ### Initial Setup
 
-#### Automated Setup with Scripts
-
-The fastest way to set up your development environment is using the provided scripts:
+Follow these steps to set up your development environment:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/intric.git
-   cd intric
+   git clone https://github.com/cagritest123/intric-docs.git
+   cd intric-docs
    ```
 
-2. **Start infrastructure services**:
+2. **Set up environment files**:
    ```bash
-   cd backend
-   docker compose up -d
-   cd ..
+   # For backend development
+   cp backend/.env.local.example backend/.env
+   
+   # For frontend development
+   cp frontend/apps/web/.env.local.example frontend/apps/web/.env
    ```
 
-3. **Run the setup scripts**:
-   ```bash
-   chmod +x scripts/post-create.sh scripts/post-start.sh
-   ./scripts/post-create.sh  # Installs dependencies
-   ./scripts/post-start.sh   # Sets up environment files
-   ```
-
-4. **Initialize the database** (first time only):
-   ```bash
-   cd backend
-   poetry run python init_db.py
-   ```
-
-5. **Start the backend service** (in one terminal):
-   ```bash
-   cd backend
-   poetry run start
-   # Or alternatively:
-   poetry run uvicorn intric.server.main:app --reload --host 0.0.0.0 --port 8123
-   ```
-
-6. **Start the frontend service** (in another terminal):
-   ```bash
-   cd frontend
-   pnpm run dev
-   ```
-
-7. **Start the worker** (optional, in a third terminal):
-   ```bash
-   cd backend
-   poetry run arq intric.worker.arq.WorkerSettings
-   ```
-
-#### Manual Setup Process
-
-If you prefer to understand each step or the scripts don't work for you:
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/intric.git
-   cd intric
-   ```
-
-2. **Set up infrastructure services**:
+3. **Start infrastructure services**:
    ```bash
    cd backend
    docker compose up -d
    ```
 
-3. **Set up backend**:
+4. **Set up backend**:
    ```bash
+   # Make sure you're in the backend directory
    cd backend
    
    # Install dependencies using Poetry
    poetry install
-   
-   # Copy environment file and edit as needed
-   cp .env.local.example .env
    
    # Initialize database (first time only)
    poetry run python init_db.py
@@ -146,20 +108,22 @@ If you prefer to understand each step or the scripts don't work for you:
    poetry run start
    ```
 
-4. **Set up frontend**:
+5. **Set up frontend**:
    ```bash
+   # Navigate to the frontend directory
    cd frontend
    
    # Install dependencies
    pnpm install
    
-   # Copy environment file and edit as needed
-   cd apps/web
-   cp .env.local.example .env
-   cd ../../
-   
    # Start the frontend development server
    pnpm run dev
+   ```
+
+6. **Start the worker** (optional, in a third terminal):
+   ```bash
+   cd backend
+   poetry run arq intric.worker.arq.WorkerSettings
    ```
 
 ### Accessing the Application
@@ -295,9 +259,6 @@ intric/
 │   │       │   └── routes/  # Application routes
 │   │       └── .env.local.example # Environment template
 │   └── package.json         # Node.js dependencies
-├── scripts/                 # Setup and utility scripts
-│   ├── post-create.sh       # Setup dependencies
-│   └── post-start.sh        # Setup environment
 ├── docker-compose.yml       # Production deployment configuration
 └── .env.production.example  # Example environment variables
 ```

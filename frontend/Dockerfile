@@ -1,54 +1,61 @@
+# Base image for installing dependencies and building the app
 FROM node:22-slim@sha256:483b3a6c706e268e57920ab906f72564ecb1dbc715607aa9b26cfa2a43d6e65d as base
 WORKDIR /app
 
-# Install dependencies stage
-FROM base AS dependencies
-RUN npm install -g pnpm@8.9.0
+# Build stage (Dependencies will be installed here)
+FROM base AS build
+# Install pnpm globally in the build stage
+RUN npm install -g pnpm@9.12.3 --no-progress
 
-# Copy package files for dependency installation
+# Copy necessary package manifests and lockfile first for layer caching
 COPY package.json pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/intric-js/package.json ./packages/intric-js/
 COPY packages/ui/package.json ./packages/ui/
 
-# Set pnpm store directory and install dependencies
-RUN pnpm config set store-dir /tmp/pnpm-store
-RUN pnpm install --frozen-lockfile
-
-# Build stage
-FROM base AS build
-RUN npm install -g pnpm@8.9.0
-COPY --from=dependencies /app/node_modules ./node_modules
+# Copy the rest of the source code
 COPY . .
 
-# Build UI packages first
+# Configure pnpm store directory (optional, might save space if store isn't needed later)
+RUN pnpm config set store-dir /tmp/pnpm-store
+# Install dependencies using the lockfile
+RUN pnpm install --frozen-lockfile
+
+# Ensure node_modules binaries are in the PATH for subsequent RUN commands
+ENV PATH="/app/node_modules/.bin:${PATH}"
+
+# Build UI packages first (assuming this is necessary)
 RUN pnpm run --filter @intric/ui... build
 
 # Build the web application
-ARG INTRIC_BACKEND_URL
-ENV INTRIC_BACKEND_URL=${INTRIC_BACKEND_URL}
 ENV NODE_ENV=production
 RUN pnpm run --filter @intric/web build
 
-# Production stage
-FROM nginx:stable-alpine-perl@sha256:f1235d7aaefb722e4e61e0f7e3fa611242f64442c7b8a99413a57a379538353e
-# Copy nginx configuration
+# ------------------------------------------------------------------------------
+# Production stage (Nginx)
+FROM nginx:1.26-alpine-perl AS final
+# Copy custom Nginx site configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built SvelteKit assets
+# Copy built SvelteKit assets from the build stage
 COPY --from=build /app/apps/web/build /usr/share/nginx/html
 
-# Update nginx to listen on port 3000
+# Update nginx in the site config to listen on port 3000 instead of 80
 RUN sed -i.bak 's/listen\(.*\)80;/listen 3000;/' /etc/nginx/conf.d/default.conf
 
-# Set proper permissions for nginx
-RUN chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /etc/nginx/conf.d
+# --- FIX: Modify existing pid directive instead of adding a duplicate ---
+# Use sed to find the line starting with 'pid' in the main nginx.conf
+# and replace the path with '/tmp/nginx.pid'.
+RUN sed -i 's#^pid .*;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
 
-# Switch to non-root user
+# Set proper permissions for directories Nginx needs to write to (cache, logs).
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+
+# Switch to the non-root user 'nginx'
 USER nginx
 
-# Expose the port
+# Expose the port Nginx will listen on
 EXPOSE 3000
 
-# Run nginx in exec form as recommended
+# Command to run nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye@sha256:56d670145c65f0d341b4af60944ba5bf416fc3fc06f4e25f01342172ac96f750 as builder
+FROM python:3.10-slim as builder
 
 # Install system dependencies required for building
 RUN apt-get update && apt-get install -y \
@@ -22,7 +22,7 @@ RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-interaction --no-ansi --only main
 
 # Final image
-FROM python:3.10-slim-bullseye@sha256:56d670145c65f0d341b4af60944ba5bf416fc3fc06f4e25f01342172ac96f750
+FROM python:3.10-slim
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \

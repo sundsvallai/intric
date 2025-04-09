@@ -140,7 +140,7 @@ services:
         condition: service_healthy
 
   db:
-    image: pgvector/pgvector:pg16@sha256:8fd720a9b6a49e70ca90fc0d97c2efea45c70d58b1727b92fcaecd05fcd87e40
+    image: pgvector/pgvector:pg16
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
@@ -158,7 +158,7 @@ services:
       - intric-network
 
   redis:
-    image: redis:8.0-M04-alpine3.21@sha256:f3574f3ce99949bed546a715f86cdcdc44bca514bd5cf6484591ef1b2153e8d3
+    image: redis
     volumes:
       - redis_data:/data
     healthcheck:
@@ -174,8 +174,9 @@ services:
   # Database initialization service (only run with --profile init)
   db-init:
     image: ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG:-latest}
-    command: ["poetry", "run", "python", "init_db.py"]
+    command: ["python", "init_db.py"]
     environment:
+      # Same environment variables as backend
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
@@ -183,8 +184,33 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
       - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AZURE_API_KEY=${AZURE_API_KEY:-}
+      - AZURE_MODEL_DEPLOYMENT=${AZURE_MODEL_DEPLOYMENT:-}
+      - AZURE_ENDPOINT=${AZURE_ENDPOINT:-}
+      - AZURE_API_VERSION=${AZURE_API_VERSION:-}
+      - MOBILITYGUARD_DISCOVERY_ENDPOINT=${MOBILITYGUARD_DISCOVERY_ENDPOINT:-}
+      - MOBILITYGUARD_CLIENT_ID=${MOBILITYGUARD_CLIENT_ID:-}
+      - MOBILITYGUARD_CLIENT_SECRET=${MOBILITYGUARD_CLIENT_SECRET:-}
+      - UPLOAD_FILE_TO_SESSION_MAX_SIZE=${UPLOAD_FILE_TO_SESSION_MAX_SIZE:-1048576}
+      - UPLOAD_IMAGE_TO_SESSION_MAX_SIZE=${UPLOAD_IMAGE_TO_SESSION_MAX_SIZE:-1048576}
+      - UPLOAD_MAX_FILE_SIZE=${UPLOAD_MAX_FILE_SIZE:-10485760}
+      - TRANSCRIPTION_MAX_FILE_SIZE=${TRANSCRIPTION_MAX_FILE_SIZE:-10485760}
+      - MAX_IN_QUESTION=${MAX_IN_QUESTION:-1}
+      - USING_ACCESS_MANAGEMENT=${USING_ACCESS_MANAGEMENT:-False}
+      - USING_AZURE_MODELS=${USING_AZURE_MODELS:-False}
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+      - API_KEY_LENGTH=${API_KEY_LENGTH:-64}
+      - API_KEY_HEADER_NAME=${API_KEY_HEADER_NAME:-example}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-*}
+      - JWT_ISSUER=${JWT_ISSUER:-EXAMPLE}
+      - JWT_EXPIRY_TIME=${JWT_EXPIRY_TIME:-86000}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - JWT_SECRET=${JWT_SECRET}
+      - JWT_TOKEN_PREFIX=${JWT_TOKEN_PREFIX:-}
       - LOGLEVEL=${LOGLEVEL:-INFO}
+
     networks:
       - intric-network
     depends_on:

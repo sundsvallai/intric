@@ -5,32 +5,31 @@ on:
     branches:
       - main
 
-env:
-  POSTGRES_USER: postgres
-  POSTGRES_HOST: localhost
-  POSTGRES_PASSWORD: postgres
-  POSTGRES_PORT: 5432
-  POSTGRES_DB: postgres
-  REDIS_HOST: localhost
-  REDIS_PORT: 6379
-  UPLOAD_FILE_TO_SESSION_MAX_SIZE: 1048576
-  UPLOAD_IMAGE_TO_SESSION_MAX_SIZE: 1048576
-  UPLOAD_MAX_FILE_SIZE: 1048576
-  TRANSCRIPTION_MAX_FILE_SIZE: 1048576
-  MAX_IN_QUESTION: 1
-  API_PREFIX: /api
-  API_KEY_LENGTH: 32
-  API_KEY_HEADER_NAME: X-API-Key
-  JWT_AUDIENCE: example.com
-  JWT_ISSUER: example.com
-  JWT_EXPIRY_TIME: 3600
-  JWT_ALGORITHM: HS256
-  JWT_SECRET: secret
-  JWT_TOKEN_PREFIX: ""
-  OPENAI_API_KEY: test
-
 jobs:
   test_backend:
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      UPLOAD_FILE_TO_SESSION_MAX_SIZE: 1048576
+      UPLOAD_IMAGE_TO_SESSION_MAX_SIZE: 1048576
+      UPLOAD_MAX_FILE_SIZE: 1048576
+      TRANSCRIPTION_MAX_FILE_SIZE: 1048576
+      MAX_IN_QUESTION: 1
+      API_PREFIX: /api
+      API_KEY_LENGTH: 32
+      API_KEY_HEADER_NAME: X-API-Key
+      JWT_AUDIENCE: example.com
+      JWT_ISSUER: example.com
+      JWT_EXPIRY_TIME: 3600
+      JWT_ALGORITHM: HS256
+      JWT_SECRET: secret
+      JWT_TOKEN_PREFIX: ""
+      OPENAI_API_KEY: test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -49,3 +48,23 @@ jobs:
         run: poetry install
       - name: Run tests
         run: poetry run pytest
+
+  check_frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build
+        run: pnpm run build
+      - name: Run checks
+        run: pnpm run check

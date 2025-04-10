@@ -3,11 +3,13 @@ services:
   frontend:
     image: ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG:-latest}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000" # Frontend needs to be exposed to the host
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - ORIGIN=https://${SERVICE_FQDN_FRONTEND:-example.com}
-      - INTRIC_BACKEND_URL=http://backend:8123
+      - ORIGIN=http://${SERVICE_FQDN_FRONTEND:-example.com}
+      # This needs to be set to the public address of the backend service since
+      # there are some calls that are made from the client (browser) to the backend.
+      - INTRIC_BACKEND_URL=${INTRIC_BACKEND_URL}
       - JWT_SECRET=${JWT_SECRET}
       - MOBILITY_GUARD_AUTH=${MOBILITY_GUARD_AUTH:-}
       - SHOW_TEMPLATES=${SHOW_TEMPLATES:-}
@@ -32,7 +34,7 @@ services:
   backend:
     image: ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG:-latest}
     ports:
-      - "${BACKEND_PORT:-8123}:8123" # Backend API needs to be exposed to the host
+      - "${BACKEND_PORT:-8123}:8123"
     environment:
       # Infrastructure dependencies
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -149,7 +151,7 @@ services:
         condition: service_healthy
 
   db:
-    image: pgvector/pgvector:pg16@sha256:8fd720a9b6a49e70ca90fc0d97c2efea45c70d58b1727b92fcaecd05fcd87e40
+    image: pgvector/pgvector:pg16
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
@@ -167,7 +169,7 @@ services:
       - intric-network
 
   redis:
-    image: redis:7.2-alpine
+    image: redis
     volumes:
       - redis_data:/data
     healthcheck:

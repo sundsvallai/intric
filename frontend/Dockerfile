@@ -1,61 +1,47 @@
-# Base image for installing dependencies and building the app
-FROM node:22-slim@sha256:483b3a6c706e268e57920ab906f72564ecb1dbc715607aa9b26cfa2a43d6e65d as base
+FROM node:18-slim as base
 WORKDIR /app
 
-# Build stage (Dependencies will be installed here)
-FROM base AS build
-# Install pnpm globally in the build stage
-RUN npm install -g pnpm@9.12.3 --no-progress
+# Install dependencies stage
+FROM base AS dependencies
+RUN npm install -g pnpm@9.12.3
 
-# Copy necessary package manifests and lockfile first for layer caching
-COPY package.json pnpm-lock.yaml ./
+# Copy package files for dependency installation
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/intric-js/package.json ./packages/intric-js/
 COPY packages/ui/package.json ./packages/ui/
 
-# Copy the rest of the source code
-COPY . .
-
-# Configure pnpm store directory (optional, might save space if store isn't needed later)
+# Set pnpm store directory and install dependencies
 RUN pnpm config set store-dir /tmp/pnpm-store
-# Install dependencies using the lockfile
 RUN pnpm install --frozen-lockfile
 
-# Ensure node_modules binaries are in the PATH for subsequent RUN commands
-ENV PATH="/app/node_modules/.bin:${PATH}"
+# Build stage
+FROM base AS build
+RUN npm install -g pnpm@9.12.3
+COPY --from=dependencies /app/ ./
+COPY . .
 
-# Build UI packages first (assuming this is necessary)
+# Build UI packages first
 RUN pnpm run --filter @intric/ui... build
 
 # Build the web application
 ENV NODE_ENV=production
+# Set public env variables at build time for client-side code
+ARG INTRIC_BACKEND_URL
+ENV INTRIC_BACKEND_URL=${INTRIC_BACKEND_URL}
 RUN pnpm run --filter @intric/web build
 
-# ------------------------------------------------------------------------------
-# Production stage (Nginx)
-FROM nginx:1.26-alpine-perl AS final
-# Copy custom Nginx site configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Production stage
+FROM node:18-slim
 
-# Copy built SvelteKit assets from the build stage
-COPY --from=build /app/apps/web/build /usr/share/nginx/html
+WORKDIR /app
 
-# Update nginx in the site config to listen on port 3000 instead of 80
-RUN sed -i.bak 's/listen\(.*\)80;/listen 3000;/' /etc/nginx/conf.d/default.conf
+# Copy only the build output and necessary files for production
+COPY --from=build /app/apps/web/build ./build
+COPY --from=build /app/apps/web/package.json .
 
-# --- FIX: Modify existing pid directive instead of adding a duplicate ---
-# Use sed to find the line starting with 'pid' in the main nginx.conf
-# and replace the path with '/tmp/nginx.pid'.
-RUN sed -i 's#^pid .*;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
-
-# Set proper permissions for directories Nginx needs to write to (cache, logs).
-RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
-
-# Switch to the non-root user 'nginx'
-USER nginx
-
-# Expose the port Nginx will listen on
+# Expose the port
 EXPOSE 3000
 
-# Command to run nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Start the SvelteKit app
+CMD ["node", "build"]

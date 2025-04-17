@@ -1,11 +1,12 @@
 import { createZitadelClient } from "$lib/core/Zitadel";
 import { createIntric, createIntricSocket } from "@intric/intric-js";
+import { browser } from "$app/environment";
 
 export const load = async (event) => {
   event.depends("global:state");
   const intric = createIntric({
     token: event.data.tokens.id_token,
-    baseUrl: event.data.baseUrl!,
+    baseUrl: browser ? event.data.publicBaseUrl! : event.data.baseUrl!,
     fetch: event.fetch
   });
 
@@ -21,7 +22,7 @@ export const load = async (event) => {
   const intricSocket = createIntricSocket(
     {
       token: event.data.tokens.id_token,
-      baseUrl: event.data.baseUrl!
+      baseUrl: browser ? event.data.publicBaseUrl! : event.data.baseUrl!
     },
     {
       defaultSubscriptions: ["app_run_updates"]

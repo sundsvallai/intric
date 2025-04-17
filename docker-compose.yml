@@ -7,9 +7,8 @@ services:
     environment:
       - NODE_ENV=production
       - ORIGIN=http://${SERVICE_FQDN_FRONTEND:-example.com}
-      # This needs to be set to the public address of the backend service since
-      # there are some calls that are made from the client (browser) to the backend.
-      - INTRIC_BACKEND_URL=${INTRIC_BACKEND_URL}
+      - INTRIC_BACKEND_URL=${INTRIC_BACKEND_URL:-http://backend:8123}
+      - INTRIC_PUBLIC_BACKEND_URL=${INTRIC_PUBLIC_BACKEND_URL:-http://localhost:8123}
       - JWT_SECRET=${JWT_SECRET}
       - MOBILITY_GUARD_AUTH=${MOBILITY_GUARD_AUTH:-}
       - SHOW_TEMPLATES=${SHOW_TEMPLATES:-}

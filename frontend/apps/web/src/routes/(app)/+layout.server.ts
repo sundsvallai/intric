@@ -11,6 +11,7 @@ export const load = async (event) => {
   return {
     tokens: { id_token: event.locals.id_token, access_token: event.locals.access_token },
     baseUrl: env.INTRIC_BACKEND_URL,
+    publicBaseUrl: env.INTRIC_PUBLIC_BACKEND_URL ?? env.INTRIC_BACKEND_URL,
     authUrl: env.ZITADEL_INSTANCE_URL ?? null,
     frontendVersion: __FRONTEND_VERSION__,
     previewEnv: __IS_PREVIEW__ ? { branch: __GIT_BRANCH__, commit: __GIT_COMMIT_SHA__ } : undefined,

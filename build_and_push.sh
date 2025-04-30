@@ -129,7 +129,6 @@ FRONTEND_DOCKERFILE_PATH="${FRONTEND_CONTEXT_PATH}/Dockerfile" # Assuming Docker
 
 log INFO "Building frontend image: ${FRONTEND_IMAGE_FULL_TAG} from ${FRONTEND_DOCKERFILE_PATH}"
 if docker build \
-    --platform linux/amd64 \
     --cache-from "${FRONTEND_IMAGE_LATEST_TAG}" \
     --build-arg BUILDKIT_INLINE_CACHE=1 \
     -t "${FRONTEND_IMAGE_FULL_TAG}" \
@@ -142,6 +141,7 @@ else
 fi
 
 log INFO "Pushing frontend image to Nexus: ${FRONTEND_IMAGE_FULL_TAG}"
+
 if docker push "${FRONTEND_IMAGE_FULL_TAG}"; then
     log SUCCESS "Frontend image pushed successfully: ${FRONTEND_IMAGE_FULL_TAG}"
 else
@@ -159,7 +159,6 @@ BACKEND_DOCKERFILE_PATH="${BACKEND_CONTEXT_PATH}/Dockerfile" # Assuming Dockerfi
 log INFO "Building backend image: ${BACKEND_IMAGE_FULL_TAG} from ${BACKEND_DOCKERFILE_PATH}"
 # --- FIX: Removed --no-cache ---
 if docker build \
-    --platform linux/amd64 \
     --cache-from "${BACKEND_IMAGE_LATEST_TAG}" \
     --build-arg BUILDKIT_INLINE_CACHE=1 \
     -t "${BACKEND_IMAGE_FULL_TAG}" \
@@ -171,13 +170,14 @@ else
     exit 1
 fi
 
-log INFO "Pushing backend image to Nexus: ${BACKEND_IMAGE_FULL_tag}"
+log INFO "Pushing backend image to Nexus: ${BACKEND_IMAGE_FULL_TAG}"
 if docker push "${BACKEND_IMAGE_FULL_TAG}"; then
     log SUCCESS "Backend image pushed successfully: ${BACKEND_IMAGE_FULL_TAG}"
 else
     log ERROR "Failed to push backend image"
     exit 1
 fi
+
 
 
 # =====================================================

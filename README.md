@@ -58,8 +58,8 @@ Get Intric running locally in just a few minutes:
 
 ```bash
 # 1. Clone the repository
-git clone (https://github.com/cagritest123/intric-docs.git
-cd intric-docs
+git clone https://github.com/sundsvallai/intric.git
+cd intric
 
 # 2. Set up environment files
 # For backend development

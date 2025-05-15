@@ -37,7 +37,7 @@ RUN poetry install --no-root --no-interaction --no-ansi --only main
 # ------------------------------------------------------------------------------
 # Final Image (Runtime)
 # Use the AMD64 platform explicitly here as well
-FROM --platform=linux/amd64 python:3.10-slim-bullseye
+FROM --platform=linux/amd64 python:3.11-slim-bullseye
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y \
@@ -49,7 +49,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy installed dependencies and binaries from the builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy the rest of the application code

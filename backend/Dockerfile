@@ -1,5 +1,5 @@
 # Use the AMD64 platform explicitly for the builder stage
-FROM --platform=linux/amd64 python:3.10-slim-bullseye as builder
+FROM --platform=linux/amd64 python:3.11-slim-bullseye as builder
 
 # Install system dependencies for building, including curl for rustup
 RUN apt-get update && apt-get install -y \

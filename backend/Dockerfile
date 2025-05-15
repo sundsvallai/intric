@@ -22,6 +22,9 @@ RUN cargo --version
 # Install Poetry with pip now that Cargo is available in the PATH
 RUN pip install --no-cache-dir poetry==1.6.1
 
+# install pandas
+RUN pip install --no-cache-dir pandas
+
 # Set working directory
 WORKDIR /app
 

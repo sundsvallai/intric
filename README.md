@@ -29,34 +29,29 @@ Intric is an open-source AI platform that empowers organizations to create, depl
 ## ✨ Features
 
 ### 🤖 AI Assistants
-
 - Create chatbot-based AI assistants tailored to specific needs
 - Customizable system prompts and behavior settings
 - Multi-LLM support (OpenAI, Anthropic, Azure, OVHCloud, Mistral, VLLM)
 - Assistant-specific API keys for programmatic access
 
 ### 📚 Knowledge Management
-
 - **Document Processing**: PDF, Word, PowerPoint, text files with automatic chunking
 - **Web Crawling**: Automated website content extraction with configurable limits
 - **Vector Search**: Semantic search using PostgreSQL with pgvector
 - **Real-time Processing**: Background tasks with ARQ queue system
 
 ### 👥 Team Collaboration
-
 - **Workspaces (Spaces)**: Isolated environments for teams with role-based access
 - **Multi-tenancy**: Owner, Admin, Editor, Viewer roles
 - **Shared Resources**: Assistants, knowledge bases, and conversations
 - **User Management**: Local authentication or OIDC integration
 
 ### 🔄 Real-time Features
-
 - **Streaming Chat**: Server-Sent Events (SSE) for real-time response streaming
 - **WebSocket Updates**: Live status updates for background tasks via Redis pub/sub
 - **Background Processing**: Async document processing and web crawling
 
 ### 🔗 Integrations
-
 - **Multiple LLM Providers**: OpenAI, Anthropic, Azure OpenAI, OVHCloud, Mistral, VLLM
 - **Authentication**: Local auth with JWT, MobilityGuard OIDC, Zitadel support
 - **Storage**: Local filesystem or cloud storage options
@@ -88,14 +83,13 @@ The fastest way to get started is using the devcontainer:
    ```
 5. **Initialize database**: `cd backend && poetry run python init_db.py`
 6. **Start services** in separate terminals:
-
    ```bash
    # Terminal 1: Backend
    cd backend && poetry run start
-
+   
    # Terminal 2: Worker (optional)
    cd backend && poetry run arq src.intric.worker.arq.WorkerSettings
-
+   
    # Terminal 3: Frontend
    cd frontend && pnpm -w run dev
    ```
@@ -103,7 +97,6 @@ The fastest way to get started is using the devcontainer:
 ### Option 2: Local Setup (5 Minutes)
 
 **Prerequisites:**
-
 - **Python 3.11+**
 - **Node.js 18+**
 - **pnpm 9.12.3**
@@ -244,43 +237,50 @@ MOBILITY_GUARD_AUTH=https://...                  # Optional: for OIDC/MobilityGu
 > **Note**: `INTRIC_BACKEND_SERVER_URL` is useful when the frontend server needs a different URL to reach the backend than what the browser uses. This can resolve CORS issues or connection problems during login when running both services together.
 
 ## 🏗️ Architecture
-
 Intric follows a domain-driven design architecture with clear separation of concerns:
-
 ```mermaid
 graph TB
-    subgraph "Production Architecture"
-        LB[Load Balancer<br/>HAProxy]
-        WS[Web Server<br/>Nginx]
-        API1[API Server 1<br/>FastAPI]
-        API2[API Server N<br/>FastAPI]
-        W1[Worker 1<br/>ARQ]
-        W2[Worker N<br/>ARQ]
-        DB[(PostgreSQL<br/>+ pgvector)]
-        R[(Redis<br/>Cache/Queue)]
-    end
-
-    LB --> WS
-    WS --> API1
-    WS --> API2
-    API1 --> DB
-    API2 --> DB
-    API1 --> R
-    API2 --> R
-    W1 --> R
-    W2 --> R
-    W1 --> DB
-    W2 --> DB
+    U[User/Browser] 
+    LB[HAProxy<br/>Load Balancer<br/><i>Optional</i>]
+    FE[SvelteKit Server<br/>Port 3000]
+    BE[FastAPI Server<br/>Port 8000]
+    W[ARQ Workers<br/>Background Tasks]
+    DB[(PostgreSQL<br/>+ pgvector)]
+    R[(Redis<br/>Queue/Cache)]
+    
+    U --> LB
+    U -.-> FE
+    U -.-> BE
+    LB --> FE
+    LB --> BE
+    FE --> BE
+    BE --> DB
+    BE --> R
+    W --> R
+    W --> DB
+    
+    style LB fill:#e1f5fe
+    style FE fill:#f3e5f5
+    style BE fill:#e8f5e8
+    style W fill:#fff3e0
+    style DB fill:#fce4ec
+    style R fill:#f1f8e9
 ```
 
 ### Core Components
 
-- **Load Balancer**: HAProxy (used in production environments like Sundsvall municipality)
-- **Backend API**: FastAPI with Gunicorn/Uvicorn workers, served directly on port 8000
-- **Frontend Server**: SvelteKit Node.js server serving the built application on port 3000
-- **Background Workers**: ARQ for async task processing (document parsing, web crawling)
-- **Database**: PostgreSQL 13+ with pgvector extension for vector embeddings
-- **Cache/Queue**: Redis for caching, task queues, and real-time pub/sub
+- **HAProxy Load Balancer** (Optional): Used in production environments like Sundsvall municipality for SSL termination and load balancing
+- **SvelteKit Server** (Port 3000): Node.js server serving the built frontend application directly - no separate web server needed
+- **FastAPI Server** (Port 8000): Python API server with Gunicorn/Uvicorn workers handling all backend requests
+- **ARQ Workers**: Background task processors for document parsing, web crawling, and other async operations
+- **PostgreSQL + pgvector**: Primary database with vector extension for semantic search and embeddings
+- **Redis**: Task queue, caching, and real-time pub/sub for WebSocket communications
+
+### Architecture Notes
+
+- **No Nginx Required**: Unlike traditional setups, Intric serves both frontend and backend directly without needing a separate web server
+- **Direct Access**: Frontend (3000) and Backend (8000) can be accessed directly or through HAProxy in production
+- **Simplified Deployment**: Fewer moving parts make deployment and maintenance easier
 
 ### Key Architectural Patterns
 
@@ -298,7 +298,6 @@ graph TB
 <summary>Click to view complete technology stack details</summary>
 
 #### Backend
-
 - **Language**: Python 3.11+
 - **Framework**: FastAPI with async/await support
 - **Database**: PostgreSQL 13+ with pgvector for vector embeddings
@@ -308,7 +307,6 @@ graph TB
 - **Testing**: pytest with fixtures and coverage reporting
 
 #### Frontend
-
 - **Framework**: SvelteKit with TypeScript
 - **Package Manager**: pnpm with workspace support
 - **HTTP Client**: Custom typed client (@intric/intric-js)
@@ -318,7 +316,6 @@ graph TB
 - **Build Tool**: Vite for fast development and optimized builds
 
 #### Infrastructure
-
 - **Containerization**: Docker with multi-stage builds
 - **Development**: Docker Compose for local infrastructure, devcontainer support
 - **Production**: Systemd services, HAProxy (external), direct service deployment
@@ -343,7 +340,7 @@ poetry run pytest -v tests/test_specific.py        # Run specific tests
 poetry run alembic upgrade head                    # Apply database migrations
 poetry run alembic revision --autogenerate -m "msg" # Create new migration
 
-# Frontend Development
+# Frontend Development  
 cd frontend
 pnpm install                                       # Install dependencies
 pnpm run setup                                     # Build shared packages
@@ -463,12 +460,11 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
 <summary>Click to view detailed production setup steps</summary>
 
 1. **Install Dependencies**:
-
    ```bash
    # RHEL8
    sudo dnf install postgresql13-server postgresql13-contrib redis
    sudo dnf install nodejs python3.11 python3.11-pip
-
+   
    # Install pgvector extension
    sudo dnf install postgresql13-devel
    git clone https://github.com/pgvector/pgvector.git
@@ -476,11 +472,10 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
    ```
 
 2. **Database Setup**:
-
    ```bash
    sudo systemctl enable postgresql-13 redis
    sudo systemctl start postgresql-13 redis
-
+   
    sudo -u postgres psql
    CREATE DATABASE intric;
    CREATE USER intric WITH PASSWORD 'secure_password';
@@ -490,23 +485,22 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
    ```
 
 3. **Application Deployment**:
-
    ```bash
    # Create application user and directory
    sudo useradd -r -s /bin/false intric
    sudo mkdir -p /opt/intric
    sudo chown intric:intric /opt/intric
-
+   
    # Deploy application
    cd /opt/intric
    git clone https://github.com/intric-ai/intric-community.git .
-
+   
    # Backend setup
    cd backend
    pip3.11 install poetry
    poetry install --no-dev
    poetry run alembic upgrade head
-
+   
    # Frontend build
    cd ../frontend
    npm install -g pnpm
@@ -515,7 +509,6 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
    ```
 
 4. **Systemd Services**:
-
    ```bash
    # Create and enable systemd services
    sudo systemctl enable intric-backend intric-worker
@@ -523,7 +516,6 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
    ```
 
 5. **HAProxy Configuration** (if used in your environment like Sundsvall municipality):
-
    ```haproxy
    frontend web_frontend
        bind *:443 ssl crt /etc/ssl/certs/intric.pem
@@ -532,12 +524,12 @@ Internet → HAProxy (SSL) → FastAPI Instances (Gunicorn + Uvicorn)
        use_backend api_backend if is_api
        use_backend ws_backend if is_websocket
        default_backend frontend_backend
-
+   
    backend api_backend
        balance roundrobin
        server api1 127.0.0.1:8000 check
        server api2 127.0.0.1:8001 check
-
+   
    backend frontend_backend
        balance roundrobin
        server frontend1 127.0.0.1:3000 check
@@ -579,7 +571,6 @@ For comprehensive deployment instructions, see the [Deployment Guide](old-docs-t
 ### Architecture Diagrams
 
 The documentation includes comprehensive architecture diagrams showing:
-
 - System component interactions
 - Authentication and authorization flows
 - Real-time communication (WebSockets and SSE)
@@ -593,7 +584,6 @@ The documentation includes comprehensive architecture diagrams showing:
 We welcome contributions from the community! Intric follows open source best practices:
 
 ### Development Workflow
-
 1. **Fork the repository** and create a feature branch
 2. **Follow coding standards**: PEP 8 (Python), ESLint config (TypeScript)
 3. **Write tests** for new functionality (≥80% coverage target)
@@ -601,14 +591,12 @@ We welcome contributions from the community! Intric follows open source best pra
 5. **Submit a pull request** with clear description and issue references
 
 ### Coding Standards
-
 - **Python**: PEP 8, type hints, docstrings, Poetry for dependencies
 - **Frontend**: ESLint configuration, TypeScript, pnpm for package management, MeltUI components
 - **Architecture**: Follow DDD patterns, maintain domain boundaries
 - **Testing**: Unit tests, integration tests, and API tests
 
 ### Community Guidelines
-
 - **Respectful Communication**: Professional and inclusive environment
 - **Issue Discussion**: Use GitHub issues for bugs and feature requests
 - **Code Review**: All changes require review from maintainers
@@ -619,13 +607,11 @@ For detailed contribution guidelines, see the [Contributing Guide](old-docs-to-u
 ## 🔧 Support and Troubleshooting
 
 ### Getting Help
-
 - **GitHub Issues**: Report bugs and request features
 - **Documentation**: Comprehensive guides cover most scenarios
 - **Community**: Connect with other users and contributors
 
 ### Common Issues
-
 - **Database Connection**: Check PostgreSQL and pgvector setup
 - **Authentication**: Verify JWT_SECRET matches between services
 - **LLM Integration**: Ensure API keys are valid and have sufficient quota
@@ -638,13 +624,11 @@ For detailed troubleshooting, see the [Troubleshooting Guide](old-docs-to-update
 Intric was originally developed by Sundsvall municipality in Sweden and is now an open-source project welcoming contributions from organizations worldwide.
 
 ### Join the Community
-
 - **GitHub Discussions**: Project-specific discussions and Q&A
 - **Issue Tracker**: Bug reports and feature requests
 - **Open Source**: Apache 2.0 licensed for maximum flexibility
 
 ### Use Cases
-
 - **Public Sector**: Municipalities and government organizations
 - **Enterprise**: Knowledge management and AI assistant deployment
 - **Research**: Academic institutions and research organizations
@@ -660,6 +644,6 @@ This license allows you to freely use, modify, and distribute Intric for both co
 
 **Made with ❤️ by the Intric Community**
 
-_Empowering organizations with open-source AI knowledge management_
+*Empowering organizations with open-source AI knowledge management*
 
 For more information, visit our [GitHub repository](https://github.com/intric-ai/intric-community) or explore the [comprehensive documentation](old-docs-to-update/).

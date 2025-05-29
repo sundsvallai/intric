@@ -2,11 +2,14 @@
 
 ## TLDR
 
-- **Required Settings**: Database connection (POSTGRES*\*), Redis connection (REDIS*\*), JWT_SECRET
+- **Required Settings**:
+  - Database connection (all POSTGRES\_\* variables)
+  - Redis connection (REDIS_HOST, REDIS_PORT)
+  - Security settings (all JWT*\*, API*\*, URL_SIGNING_KEY)
+  - Upload limits (all UPLOAD\_\*, MAX_IN_QUESTION)
 - **LLM Integration**: Configure at least one provider (OpenAI, Anthropic, Azure, OVHCloud, Mistral, VLLM, etc.)
 - **Authentication**: Local auth by default, optional MobilityGuard/Zitadel OIDC integration
-- **Feature Flags**: Control access management, IAM, image generation, crawling features
-- **Upload Limits**: Configure file size limits for uploads and transcriptions
+- **Feature Flags**: Control access management, IAM, image generation, crawling features (all have defaults)
 
 This guide provides comprehensive information about configuring the Intric platform through environment variables and configuration files.
 
@@ -48,42 +51,43 @@ These variables control fundamental aspects of the Intric platform:
 
 Variables for configuring PostgreSQL database connection:
 
-| Variable            | Description                                                     | Default    | Required |
-| ------------------- | --------------------------------------------------------------- | ---------- | -------- |
-| `POSTGRES_HOST`     | Database hostname                                               | `db`       | No       |
-| `POSTGRES_USER`     | Database username                                               | `postgres` | No       |
-| `POSTGRES_PASSWORD` | Database password                                               | None       | Yes      |
-| `POSTGRES_PORT`     | Database port                                                   | `5432`     | No       |
-| `POSTGRES_DB`       | Database name                                                   | `postgres` | No       |
-| `DATABASE_URL`      | Complete database URL (auto-generated from individual settings) | Generated  | No       |
+| Variable            | Description                                                     | Default   | Required | Example     |
+| ------------------- | --------------------------------------------------------------- | --------- | -------- | ----------- |
+| `POSTGRES_HOST`     | Database hostname                                               | None      | Yes      | `localhost` |
+| `POSTGRES_USER`     | Database username                                               | None      | Yes      | `postgres`  |
+| `POSTGRES_PASSWORD` | Database password                                               | None      | Yes      | `postgres`  |
+| `POSTGRES_PORT`     | Database port                                                   | None      | Yes      | `5432`      |
+| `POSTGRES_DB`       | Database name                                                   | None      | Yes      | `postgres`  |
+| `DATABASE_URL`      | Complete database URL (auto-generated from individual settings) | Generated | No       | -           |
 
 ### Redis Configuration
 
 Variables for configuring Redis:
 
-| Variable         | Description                                             | Default | Required |
-| ---------------- | ------------------------------------------------------- | ------- | -------- |
-| `REDIS_HOST`     | Redis hostname                                          | `redis` | No       |
-| `REDIS_PORT`     | Redis port                                              | `6379`  | No       |
-| `REDIS_PASSWORD` | Redis password (if required)                            | None    | No       |
-| `REDIS_DB`       | Redis database index                                    | `0`     | No       |
-| `REDIS_URL`      | Complete Redis URL (alternative to individual settings) | None    | No       |
+| Variable         | Description                                             | Default | Required | Example     |
+| ---------------- | ------------------------------------------------------- | ------- | -------- | ----------- |
+| `REDIS_HOST`     | Redis hostname                                          | None    | Yes      | `localhost` |
+| `REDIS_PORT`     | Redis port                                              | None    | Yes      | `6379`      |
+| `REDIS_PASSWORD` | Redis password (if required)                            | None    | No       | -           |
+| `REDIS_DB`       | Redis database index                                    | `0`     | No       | `0`         |
+| `REDIS_URL`      | Complete Redis URL (alternative to individual settings) | None    | No       | -           |
 
 ### Security and Authentication
 
 Variables for configuring security settings:
 
-| Variable              | Description                                  | Default   | Required |
-| --------------------- | -------------------------------------------- | --------- | -------- |
-| `JWT_SECRET`          | Secret key for JWT tokens                    | None      | Yes      |
-| `JWT_AUDIENCE`        | JWT audience claim                           | `*`       | No       |
-| `JWT_ISSUER`          | JWT issuer claim                             | `EXAMPLE` | No       |
-| `JWT_EXPIRY_TIME`     | JWT token expiry time in seconds             | `86000`   | No       |
-| `JWT_ALGORITHM`       | Algorithm used for JWT                       | `HS256`   | No       |
-| `JWT_TOKEN_PREFIX`    | Prefix for JWT token in Authorization header | (empty)   | No       |
-| `API_PREFIX`          | Prefix for API routes                        | `/api/v1` | No       |
-| `API_KEY_LENGTH`      | Length of API keys                           | `64`      | No       |
-| `API_KEY_HEADER_NAME` | Header name for API key                      | `example` | No       |
+| Variable              | Description                                  | Default | Required | Example   |
+| --------------------- | -------------------------------------------- | ------- | -------- | --------- |
+| `JWT_SECRET`          | Secret key for JWT tokens                    | None    | Yes      | `1234`    |
+| `JWT_AUDIENCE`        | JWT audience claim                           | None    | Yes      | `*`       |
+| `JWT_ISSUER`          | JWT issuer claim                             | None    | Yes      | `EXAMPLE` |
+| `JWT_EXPIRY_TIME`     | JWT token expiry time in seconds             | None    | Yes      | `86000`   |
+| `JWT_ALGORITHM`       | Algorithm used for JWT                       | None    | Yes      | `HS256`   |
+| `JWT_TOKEN_PREFIX`    | Prefix for JWT token in Authorization header | None    | Yes      | (empty)   |
+| `API_PREFIX`          | Prefix for API routes                        | None    | Yes      | `/api/v1` |
+| `API_KEY_LENGTH`      | Length of API keys                           | None    | Yes      | `64`      |
+| `API_KEY_HEADER_NAME` | Header name for API key                      | None    | Yes      | `example` |
+| `URL_SIGNING_KEY`     | Key for signing URLs                         | None    | Yes      | (empty)   |
 
 ### LLM Integration
 
@@ -111,13 +115,13 @@ Variables for configuring LLM providers:
 
 Variables for configuring file upload limitations:
 
-| Variable                           | Description                            | Default    | Required |
-| ---------------------------------- | -------------------------------------- | ---------- | -------- |
-| `UPLOAD_FILE_TO_SESSION_MAX_SIZE`  | Maximum file size for session uploads  | `1048576`  | No       |
-| `UPLOAD_IMAGE_TO_SESSION_MAX_SIZE` | Maximum image size for session uploads | `1048576`  | No       |
-| `UPLOAD_MAX_FILE_SIZE`             | Maximum file size for general uploads  | `10485760` | No       |
-| `TRANSCRIPTION_MAX_FILE_SIZE`      | Maximum file size for transcription    | `10485760` | No       |
-| `MAX_IN_QUESTION`                  | Maximum files in question              | `1`        | No       |
+| Variable                           | Description                                    | Default | Required | Example           |
+| ---------------------------------- | ---------------------------------------------- | ------- | -------- | ----------------- |
+| `UPLOAD_FILE_TO_SESSION_MAX_SIZE`  | Maximum file size for session uploads (bytes)  | None    | Yes      | `1048576` (1MB)   |
+| `UPLOAD_IMAGE_TO_SESSION_MAX_SIZE` | Maximum image size for session uploads (bytes) | None    | Yes      | `1048576` (1MB)   |
+| `UPLOAD_MAX_FILE_SIZE`             | Maximum file size for general uploads (bytes)  | None    | Yes      | `10485760` (10MB) |
+| `TRANSCRIPTION_MAX_FILE_SIZE`      | Maximum file size for transcription (bytes)    | None    | Yes      | `10485760` (10MB) |
+| `MAX_IN_QUESTION`                  | Maximum files in question                      | None    | Yes      | `1`               |
 
 ### Feature Flags
 
@@ -181,14 +185,24 @@ Variables for internal service authentication:
 
 Variables specifically for the frontend:
 
-| Variable              | Description                     | Default                 | Required |
-| --------------------- | ------------------------------- | ----------------------- | -------- |
-| `INTRIC_BACKEND_URL`  | URL for backend API             | `http://localhost:8123` | Yes      |
-| `JWT_SECRET`          | JWT secret (must match backend) | None                    | Yes      |
-| `FEEDBACK_FORM_URL`   | URL for feedback form           | None                    | No       |
-| `PUBLIC_URL`          | Public URL for the application  | None                    | No       |
-| `MOBILITY_GUARD_AUTH` | MobilityGuard auth URL          | None                    | No       |
-| `SHOW_TEMPLATES`      | Show templates in UI            | `True`                  | No       |
+| Variable                       | Description                                      | Default                                               | Required |
+| ------------------------------ | ------------------------------------------------ | ----------------------------------------------------- | -------- |
+| `INTRIC_BACKEND_URL`           | URL for backend API                              | `https://api.intric.ai`                               | Yes      |
+| `INTRIC_BACKEND_SERVER_URL`    | Backend URL for server-side rendering (optional) | None                                                  | No       |
+| `JWT_SECRET`                   | JWT secret (legacy - not currently used)         | None                                                  | No       |
+| `FEEDBACK_FORM_URL`            | URL for feedback form (deprecated)               | None                                                  | No       |
+| `PUBLIC_URL`                   | Public URL for the application                   | None                                                  | No       |
+| `MOBILITY_GUARD_AUTH`          | MobilityGuard auth URL                           | None                                                  | No       |
+| `SHOW_TEMPLATES`               | Show templates in UI                             | `False`                                               | No       |
+| `SHOW_WEB_SEARCH`              | Enable web search feature                        | `False`                                               | No       |
+| `SHOW_HELP_CENTER`             | Show help center link                            | `False`                                               | No       |
+| `ZITADEL_INSTANCE_URL`         | Zitadel authentication instance URL              | None                                                  | No       |
+| `ZITADEL_PROJECT_CLIENT_ID`    | Zitadel project client ID                        | None                                                  | No       |
+| `FORCE_LEGACY_AUTH`            | Force use of legacy authentication               | `False`                                               | No       |
+| `REQUEST_INTEGRATION_FORM_URL` | URL for integration request form                 | None                                                  | No       |
+| `HELP_CENTER_URL`              | URL for help center                              | `https://www.intric.ai/en/external-support-assistant` | No       |
+| `SUPPORT_EMAIL`                | Support email address                            | `support@intric.ai`                                   | No       |
+| `SALES_EMAIL`                  | Sales email address                              | `sales@intric.ai`                                     | No       |
 
 ## Docker Configuration
 
@@ -236,28 +250,37 @@ Note: Production docker-compose files should be created based on your specific i
 
 ### Environment Variables
 
-Create a `.env` file in the frontend directory with these settings:
+Create a `.env` file in the `frontend/apps/web` directory. Here's a minimal example:
 
 ```
-INTRIC_BACKEND_URL=http://localhost:8123
-PUBLIC_URL=http://localhost:3000
-FEEDBACK_FORM_URL=https://example.com/feedback
+# Required
+INTRIC_BACKEND_URL=http://localhost:8000
+
+# Optional - only needed if backend is on different URL for SSR
+# INTRIC_BACKEND_SERVER_URL=http://localhost:8000
+
+# Legacy - no longer used but may be in old configs
+# JWT_SECRET=1234
+
+# Feature flags (all default to false)
+# SHOW_TEMPLATES=true
+# SHOW_WEB_SEARCH=true
+# SHOW_HELP_CENTER=true
+
+# External authentication (if using Zitadel)
+# ZITADEL_INSTANCE_URL=https://your-instance.zitadel.cloud
+# ZITADEL_PROJECT_CLIENT_ID=your-client-id
 ```
 
-### Runtime Configuration
+### Frontend Configuration Notes
 
-The frontend can be configured at runtime through the `window.__RUNTIME_CONFIG__` object:
+The frontend configuration is handled through environment variables at build time. These values are:
 
-```html
-<script>
-  window.__RUNTIME_CONFIG__ = {
-    backendUrl: "https://api.example.com",
-    features: {
-      showTemplates: true,
-    },
-  };
-</script>
-```
+- Embedded during the build process for production deployments
+- Loaded from `.env` files during local development
+- Accessible server-side through SvelteKit's `$env` modules
+
+**Important**: Frontend environment variables are baked into the build and cannot be changed at runtime without rebuilding the application.
 
 ## Backend Configuration
 

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="old-docs-to-update/assets/intric-logo.png" alt="Intric" width="300">
+<img src="docs/assets/intric-logo.png" alt="Intric" width="300">
 
 **An open-source AI-powered knowledge management platform**
 
@@ -63,7 +63,7 @@ Intric is an open-source AI platform that empowers organizations to create, depl
 - **Vector Database**: PostgreSQL with pgvector extension for semantic search
 
 <div align="center">
-<img src="old-docs-to-update/assets/intric-interface.png" alt="Intric Platform Interface" width="700">
+<img src="docs/assets/intric-interface.png" alt="Intric Platform Interface" width="700">
 <p><i>The Intric platform interface showing various AI assistants</i></p>
 </div>
 

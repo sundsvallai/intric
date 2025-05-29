@@ -1,532 +1,477 @@
 # Intric Deployment Guide
 
 ## TLDR
-- **Requirements**: Docker Engine 20.10+, Docker Compose 2+, 4GB RAM (recommended)
-- **Quick Deploy**:
-  1. Create `.env` file with required variables
-  2. Pull images: `docker compose pull`
-  3. Start services: `docker compose up -d`
-  4. Initialize database: `docker compose --profile init up db-init` (first time only)
-  5. Verify with: `docker compose ps`
-- **Production Setup**: Configure SSL/TLS, persistent volumes, regular backups, and resource limits
 
-This guide provides comprehensive instructions for deploying Intric in a production environment.
+- **Requirements**: Docker 20.10+, Docker Compose 2+, PostgreSQL 13+ with pgvector, Redis 6+
+- **Components to Deploy**: Frontend (SvelteKit), Backend API (FastAPI), Worker (ARQ), PostgreSQL, Redis
+- **Production Stack**: HAProxy (optional load balancer), FastAPI with Gunicorn/Uvicorn, SvelteKit Node.js server (no separate web server required)
+- **Recommended Setup**: 4GB+ RAM, 50GB+ storage for production
+
+This guide provides comprehensive instructions for deploying Intric in production environments, with specific guidance for HAProxy and RHEL8 deployments.
 
 ## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
 - [Prerequisites](#prerequisites)
-- [System Requirements](#system-requirements)
-- [Version Compatibility](#version-compatibility)
-- [Configuration](#configuration)
-- [Deployment Steps](#deployment-steps)
-- [Using Nexus Registry](#using-nexus-registry)
-- [Production Considerations](#production-considerations)
+- [Development Setup](#development-setup)
+- [Production Deployment](#production-deployment)
+- [HAProxy Configuration](#haproxy-configuration)
+- [RHEL8 Specific Setup](#rhel8-specific-setup)
 - [Maintenance](#maintenance)
 - [Troubleshooting](#troubleshooting)
-- [Web Server Configuration](#web-server-configuration)
+
+## Architecture Overview
+
+Production deployment typically consists of:
+
+1. **Load Balancer** (HAProxy - optional, used in environments like Sundsvall municipality)
+2. **Backend Services** (FastAPI with Gunicorn/Uvicorn workers)
+3. **Frontend Service** (SvelteKit Node.js server)
+4. **Background Workers** (ARQ workers)
+5. **Database** (PostgreSQL with pgvector)
+6. **Cache/Queue** (Redis)
 
 ## Prerequisites
 
-- Linux server with Docker Engine 20.10.x or later
-- Docker Compose 2.x or later
-- At least 4GB RAM (recommended), 1GB RAM (minimum)
-- Sufficient disk space for database storage (consider the 25x multiplier for vector embeddings)
-- At least 2GB of disk space for Docker images
-- Outbound internet connectivity to LLM APIs (not necessary for on-prem deployments)
-- Access to a Docker registry containing Intric images
+### System Requirements
 
-## System Requirements
+- **OS**: Linux (RHEL8, Ubuntu 20.04+, or similar)
+- **Docker**: 20.10+ and Docker Compose 2+ (or Podman for RHEL8)
+- **RAM**: Minimum 4GB, recommended 8GB+
+- **Storage**: Minimum 50GB for production
+- **CPU**: 2+ cores recommended
 
-Since Intric uses pgvector for vector embeddings, its memory requirements are optimized:
+### Software Dependencies
 
-- **Recommended**: 4GB RAM
-- **Minimum**: 1GB RAM
+- PostgreSQL 13+ with pgvector extension
+- Redis 6+
+- Python 3.11+ (for backend)
+- Node.js 18+ and pnpm (for frontend)
+- HAProxy (optional, for load balancing in production environments)
 
-**Storage considerations**: 
-- Vector embeddings require approximately 25x the size of the original text data
-- Docker images: Frontend (~150MB) and Backend (~800MB) require approximately 1GB
-- Additional storage for Docker volumes: Allow at least 10GB of free space for database growth
-- Current cloud deployment uses approximately 50GB of storage
+## Development Setup
 
-## Version Compatibility
-
-For production deployments, maintain version consistency between components:
-
-| Component | Compatible Versions |
-|-----------|-------------------|
-| Frontend  | Must match Backend major.minor version |
-| Backend   | Must match Frontend major.minor version |
-| Worker    | Must be identical to Backend version |
-| PostgreSQL | 13.x with pgvector |
-| Redis     | 6.x or later |
-
-When upgrading, always update the frontend and backend to matching versions.
-
-## Configuration
-
-### Environment Variables
-
-The entire Intric platform is configured through environment variables in a `.env` file. The docker-compose.yml file uses the pattern `${VARIABLE_NAME:-default_value}` which means:
-- If defined in .env, that value will be used
-- If not defined, the default value in docker-compose.yml will be used
-- You don't need to modify docker-compose.yml directly
-
-Here's a comprehensive list of available environment variables:
-
-#### Network Configuration
-- `SERVICE_FQDN_FRONTEND`: Frontend domain name
-- `FRONTEND_PORT`: Port for the frontend service (default: 3000)
-- `BACKEND_PORT`: Port for the backend service (default: 8123)
-- `NEXUS_REGISTRY`: URL of your Docker registry
-- `IMAGE_TAG`: Version tag of the images to deploy
-
-#### Database Configuration
-- `POSTGRES_HOST`: Database hostname (internal service name: db)
-- `POSTGRES_USER`: Database username (default: postgres)
-- `POSTGRES_PASSWORD`: Database password
-- `POSTGRES_PORT`: Database port (default: 5432)
-- `POSTGRES_DB`: Database name (default: postgres)
-
-#### Redis Configuration
-- `REDIS_HOST`: Redis hostname (internal service name: redis)
-- `REDIS_PORT`: Redis port (default: 6379)
-
-#### Security and Authentication
-- `JWT_SECRET`: Secret key for JWT tokens
-- `JWT_AUDIENCE`: JWT audience claim (default: *)
-- `JWT_ISSUER`: JWT issuer claim (default: EXAMPLE)
-- `JWT_EXPIRY_TIME`: JWT token expiry time in seconds (default: 86000)
-- `JWT_ALGORITHM`: Algorithm used for JWT (default: HS256)
-- `JWT_TOKEN_PREFIX`: Prefix for JWT token in Authorization header
-- `API_PREFIX`: Prefix for API routes (default: /api/v1)
-- `API_KEY_LENGTH`: Length of API keys (default: 64)
-- `API_KEY_HEADER_NAME`: Header name for API key (default: example)
-
-#### LLM API Configuration
-- `OPENAI_API_KEY`: OpenAI API key
-- `ANTHROPIC_API_KEY`: Anthropic API key
-- `AZURE_API_KEY`: Azure API key
-- `AZURE_MODEL_DEPLOYMENT`: Azure model deployment name
-- `AZURE_ENDPOINT`: Azure API endpoint
-- `AZURE_API_VERSION`: Azure API version
-
-#### File Upload Limits
-- `UPLOAD_FILE_TO_SESSION_MAX_SIZE`: Maximum file size for session uploads (default: 1048576 bytes)
-- `UPLOAD_IMAGE_TO_SESSION_MAX_SIZE`: Maximum image size for session uploads (default: 1048576 bytes)
-- `UPLOAD_MAX_FILE_SIZE`: Maximum file size for general uploads (default: 10485760 bytes)
-- `TRANSCRIPTION_MAX_FILE_SIZE`: Maximum file size for transcription (default: 10485760 bytes)
-- `MAX_IN_QUESTION`: Maximum files in question (default: 1)
-
-#### Feature Flags
-- `USING_ACCESS_MANAGEMENT`: Enable/disable access management (default: False)
-- `USING_AZURE_MODELS`: Enable/disable Azure models (default: False)
-
-#### MobilityGuard Authentication (Optional)
-- `MOBILITYGUARD_DISCOVERY_ENDPOINT`: MobilityGuard discovery endpoint
-- `MOBILITYGUARD_CLIENT_ID`: MobilityGuard client ID
-- `MOBILITYGUARD_CLIENT_SECRET`: MobilityGuard client secret
-- `MOBILITY_GUARD_AUTH`: MobilityGuard auth URL for frontend
-
-#### Frontend Specific Settings
-- `SHOW_TEMPLATES`: Enable/disable templates display
-- `FEEDBACK_FORM_URL`: URL for feedback form
-
-#### Logging
-- `LOGLEVEL`: Log level (DEBUG, INFO, WARNING, ERROR) (default: INFO)
-
-## Environment Configuration
-
-Intric uses the following environment configuration files:
-
-### Production Deployment
-1. **Primary Configuration**: `.env.production.example`
-   - Located in root directory
-   - Contains all variables needed for production deployment
-   - Usage: `cp .env.production.example .env`
-
-The root `.env.production.example` file includes comprehensive configuration for:
-- Docker registry settings
-- Network configuration
-- Database and Redis settings
-- Authentication and security
-- Feature flags and API keys
-- File upload limits
-- Logging configuration
-
-Example production setup:
-```bash
-# Copy the production environment template
-cp .env.production.example .env
-
-# Edit required variables (minimum configuration)
-nano .env
-
-# Required variables to set:
-NEXUS_REGISTRY=your.nexus.registry.com
-IMAGE_TAG=version_to_deploy
-POSTGRES_PASSWORD=secure_password
-JWT_SECRET=secure_random_string
-
-# Optional but recommended:
-SERVICE_FQDN_FRONTEND=your.domain.com
-OPENAI_API_KEY=your_openai_key  # Or other LLM provider keys
-```
-
-> **Note**: The `.env` files should never be committed to version control. The `.env.production.example` file serves as a template and documentation of available configuration options.
-
-## Deployment Steps
-
-1. **Create a `.env` file**:
-   ```bash
-   cp .env.example .env
-   nano .env  # Edit with your specific values
-   ```
-   
-   Ensure you set at least these required variables:
-   ```
-   NEXUS_REGISTRY=your.nexus.registry.com
-   IMAGE_TAG=version_to_deploy
-   POSTGRES_PASSWORD=secure_password
-   JWT_SECRET=secure_random_string
-   ```
-
-2. **Pull the Docker images from your Nexus registry**:
-   ```bash
-   docker compose pull
-   ```
-
-3. **Start the services**:
-   ```bash
-   docker compose up -d
-   ```
-   This will start all container services defined in docker-compose.yml: frontend, backend, worker, db, and redis.
-
-4. **Initialize the database** (first time only):
-   ```bash
-   docker compose --profile init up db-init
-   ```
-   This command runs the database initialization container which sets up the schema and initial data.
-
-5. **Verify deployment**:
-   ```bash
-   docker compose ps
-   ```
-   Ensure all services are running properly and check logs if needed:
-   ```bash
-   docker compose logs -f [service_name]
-   ```
-
-6. **Verify connectivity**:
-   ```bash
-   # Check if the frontend is accessible
-   curl http://localhost:${FRONTEND_PORT}
-   
-   # Check if the backend is responding
-   curl -I http://localhost:${BACKEND_PORT}
-   ```
-
-## Using Nexus Registry
-
-Intric is designed to use a private Docker registry like Nexus for storing and distributing container images.
-
-### Setting Up Nexus Authentication
-
-1. **Log in to your Nexus registry**:
-   ```bash
-   docker login ${NEXUS_REGISTRY} -u $NEXUS_USERNAME -p $NEXUS_PASSWORD
-   ```
-
-2. **Configure credentials in CI/CD environment**:
-   For automated builds, set up authentication in your CI/CD pipeline:
-   ```bash
-   echo $NEXUS_PASSWORD | docker login ${NEXUS_REGISTRY} -u $NEXUS_USERNAME --password-stdin
-   ```
-
-### Building Docker Images for Nexus
-
-There are two approaches to building and pushing images:
-
-#### Option 1: Using the build_and_push.sh Script (Recommended)
-
-The repository includes an optimized script for building and pushing images that follows best practices:
+For local development, use the provided docker-compose:
 
 ```bash
-# Make the script executable (first time only)
-chmod +x build_and_push.sh
+cd backend
+docker compose up -d  # Starts PostgreSQL and Redis
 
-# Set required environment variables
-export NEXUS_REGISTRY="your.nexus.registry.com"
-export IMAGE_TAG="1.0.0"  # Optional - script can auto-detect version
-export NEXUS_USERNAME="your_username"  # Optional
-export NEXUS_PASSWORD="your_password"  # Optional
+# Backend setup
+poetry install
+poetry run python init_db.py  # Initialize database
+poetry run start  # Start API server on port 8000
 
-# Run the script
-./build_and_push.sh
+# Worker setup (in another terminal)
+poetry run arq src.intric.worker.arq.WorkerSettings
+
+# Frontend setup (in another terminal)
+cd ../frontend
+pnpm install
+pnpm run setup
+pnpm -w run dev  # Start dev server on port 5173
 ```
 
-This script:
-- Uses Docker BuildKit for improved build performance
-- Properly layers the image for optimal caching
-- Handles authentication with the Nexus registry
-- Intelligent versioning:
-  - Uses Git tags if present (supports semantic versioning)
-  - For development branches, creates unique tags with branch name, commit hash and date
-  - Only pushes "latest" tag for main/master branches or semantic versions
-- Pushes all images to the registry in the correct order
-- Provides colorized output with clear error messages
+## Production Deployment
 
-#### Option 2: Manual Build Process
+### 1. Environment Configuration
 
-If you prefer to build manually or need more control over the process:
+Create environment files for both backend and frontend:
 
-1. **Set up environment variables**:
-   ```bash
-   export NEXUS_REGISTRY="your.nexus.registry.com"
-   export IMAGE_TAG="latest"  # or a specific version like "1.0.0"
-   ```
+**Backend (.env)**:
 
-2. **Build the backend image**:
-   ```bash
-   cd backend
-   docker build -t ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG} .
-   ```
+```bash
+# Database
+POSTGRES_USER=intric
+POSTGRES_PASSWORD=<secure-password>
+POSTGRES_HOST=<database-host>
+POSTGRES_PORT=5432
+POSTGRES_DB=intric
 
-   The backend Dockerfile uses a multi-stage build process:
-   - First stage installs build dependencies and Poetry
-   - Second stage includes only runtime dependencies for a smaller image
-   - Application code is copied into the container
-   - The image exposes port 8123 and runs the FastAPI application with uvicorn
+# Redis
+REDIS_HOST=<redis-host>
+REDIS_PORT=6379
 
-3. **Build the frontend image**:
-   ```bash
-   cd frontend
-   docker build -t ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG} .
-   ```
+# Security
+JWT_SECRET=<secure-random-string>
+JWT_AUDIENCE=intric
+JWT_ISSUER=intric
+API_KEY_HEADER_NAME=X-API-Key
 
-   The frontend Dockerfile also uses multi-stage builds:
-   - Dependencies are installed using pnpm
-   - UI packages are built first
-   - Web application is built with proper environment settings
-   - Final image is based on Nginx Alpine for serving static content
-   - The image exposes port 3000 and runs Nginx with a custom configuration
+# LLM Providers (at least one required)
+OPENAI_API_KEY=<your-key>
+# ANTHROPIC_API_KEY=<your-key>
 
-4. **Push the images to your Nexus registry**:
-   ```bash
-   docker push ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG}
-   docker push ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG}
-   ```
+# Feature Flags
+USING_ACCESS_MANAGEMENT=True
 
-### CI/CD Integration
+# Logging
+LOGLEVEL=INFO
+```
 
-For automated builds, integrate these steps into a CI/CD pipeline:
+**Frontend (.env)**:
 
-1. **Build and tag** the images with proper versions:
-   ```bash
-   # Use Git commit hash or CI build number for versioning
-   export IMAGE_TAG=$(git rev-parse --short HEAD)
-   
-   # Build images
-   docker build -t ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG} ./backend
-   docker build -t ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG} ./frontend
-   
-   # Also tag as latest
-   docker tag ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG} ${NEXUS_REGISTRY}/intric/backend:latest
-   docker tag ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG} ${NEXUS_REGISTRY}/intric/frontend:latest
-   ```
+```bash
+INTRIC_BACKEND_URL=https://api.yourdomain.com
+JWT_SECRET=<same-as-backend>
+PUBLIC_URL=https://yourdomain.com
+```
 
-2. **Push all images**:
-   ```bash
-   docker push ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG}
-   docker push ${NEXUS_REGISTRY}/intric/backend:latest
-   docker push ${NEXUS_REGISTRY}/intric/frontend:${IMAGE_TAG}
-   docker push ${NEXUS_REGISTRY}/intric/frontend:latest
-   ```
+### 2. Database Setup
 
-## Production Considerations
+Install PostgreSQL with pgvector:
 
-1. **SSL/TLS Termination**: For production deployments, set up a reverse proxy (like Nginx or Traefik) for SSL/TLS termination.
+```bash
+# RHEL8
+sudo dnf install postgresql13-server postgresql13-contrib
+sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+sudo systemctl enable postgresql-13
+sudo systemctl start postgresql-13
 
-2. **Data Persistence**: The Docker Compose configuration creates named volumes for database and Redis data. For production, consider mapping these volumes to specific host directories for easier backup management:
-   ```yaml
-   volumes:
-     postgres_data:
-       driver: local
-       driver_opts:
-         type: none
-         device: /path/to/persistent/storage/postgres
-         o: bind
-     redis_data:
-       driver: local
-       driver_opts:
-         type: none
-         device: /path/to/persistent/storage/redis
-         o: bind
-     backend_data:
-       driver: local
-       driver_opts:
-         type: none
-         device: /path/to/persistent/storage/backend
-         o: bind
-   ```
+# Install pgvector
+sudo dnf install postgresql13-devel
+git clone https://github.com/pgvector/pgvector.git
+cd pgvector
+make
+sudo make install
 
-3. **Backup Strategy**: Implement regular database backups:
-   ```bash
-   docker compose exec db pg_dump -U postgres -d postgres > intric_backup_$(date +%Y%m%d).sql
-   ```
+# Create database and enable extension
+sudo -u postgres psql
+CREATE DATABASE intric;
+\c intric
+CREATE EXTENSION vector;
+```
 
-4. **Monitoring**: Set up health checks and monitoring for the containers.
+### 3. Redis Setup
 
-5. **Resource Limits**: Define CPU and memory limits for production stability:
-   ```yaml
-   services:
-     backend:
-       deploy:
-         resources:
-           limits:
-             cpus: '2'
-             memory: 2G
-     frontend:
-       deploy:
-         resources:
-           limits:
-             cpus: '0.5'
-             memory: 512M
-   ```
+```bash
+# RHEL8
+sudo dnf install redis
+sudo systemctl enable redis
+sudo systemctl start redis
+```
 
-6. **Service Restart Policies**: All services are configured with `restart: unless-stopped` to automatically recover from failures.
+### 4. Backend Deployment
 
-7. **Database Admin Access**: Consider setting up a database admin tool like pgAdmin for managing the database. This can be run as an additional container or installed separately.
+Build and deploy the backend:
 
-8. **Firewall Configuration**: Ensure your firewall allows traffic to the required ports (typically 3000 for frontend and 8123 for backend).
+```bash
+# Build Docker image
+cd backend
+docker build -t intric-backend:latest .
+
+# Or deploy directly with systemd
+# Create systemd service file: /etc/systemd/system/intric-backend.service
+[Unit]
+Description=Intric Backend API
+After=network.target postgresql-13.service redis.service
+
+[Service]
+Type=exec
+User=intric
+WorkingDirectory=/opt/intric/backend
+Environment="PATH=/opt/intric/backend/.venv/bin:/usr/local/bin:/usr/bin"
+ExecStart=/opt/intric/backend/.venv/bin/gunicorn src.intric.server.main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --access-logfile - \
+  --error-logfile -
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 5. Worker Deployment
+
+Deploy ARQ workers:
+
+```bash
+# Create systemd service file: /etc/systemd/system/intric-worker.service
+[Unit]
+Description=Intric Background Worker
+After=network.target postgresql-13.service redis.service
+
+[Service]
+Type=exec
+User=intric
+WorkingDirectory=/opt/intric/backend
+Environment="PATH=/opt/intric/backend/.venv/bin:/usr/local/bin:/usr/bin"
+ExecStart=/opt/intric/backend/.venv/bin/arq src.intric.worker.arq.WorkerSettings
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 6. Frontend Deployment
+
+Build and deploy the frontend:
+
+```bash
+cd frontend
+pnpm install
+pnpm run setup
+pnpm run build
+
+# The SvelteKit Node.js server serves the built application directly
+# No separate web server is required
+```
+
+### 7. Service Configuration
+
+**Backend Service (FastAPI with Gunicorn)**:
+The backend runs directly with Gunicorn and Uvicorn workers on port 8000.
+
+**Frontend Service (SvelteKit Node.js)**:
+The frontend runs as a Node.js server on port 3000, serving the built SvelteKit application.
+
+Example systemd service file `/etc/systemd/system/intric-frontend.service`:
+
+```ini
+[Unit]
+Description=Intric Frontend Service
+After=network.target
+
+[Service]
+Type=exec
+User=intric
+WorkingDirectory=/opt/intric/frontend/apps/web
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node build/index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Direct Access**:
+
+- Backend API: `http://server:8000`
+- Frontend: `http://server:3000`
+
+**Note**: Unlike traditional setups, Intric doesn't require a separate web server like Nginx. The SvelteKit Node.js server handles static file serving and the FastAPI server handles API requests directly.
+
+## HAProxy Configuration
+
+For production deployments at scale, HAProxy provides load balancing:
+
+```haproxy
+global
+    maxconn 4096
+    log /dev/log local0
+    chroot /var/lib/haproxy
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+
+frontend web_frontend
+    bind *:80
+    bind *:443 ssl crt /etc/haproxy/certs/intric.pem
+    redirect scheme https if !{ ssl_fc }
+
+    # ACLs
+    acl is_api path_beg /api
+    acl is_websocket hdr(Upgrade) -i WebSocket
+
+    # Backend selection
+    use_backend api_backend if is_api
+    use_backend ws_backend if is_websocket
+    default_backend web_backend
+
+backend web_backend
+    balance roundrobin
+    server frontend1 10.0.0.10:3000 check
+    server frontend2 10.0.0.11:3000 check
+
+backend api_backend
+    balance roundrobin
+    server api1 10.0.0.20:8000 check
+    server api2 10.0.0.21:8000 check
+    server api3 10.0.0.22:8000 check
+
+backend ws_backend
+    balance source
+    server api1 10.0.0.20:8000 check
+    server api2 10.0.0.21:8000 check
+    server api3 10.0.0.22:8000 check
+```
+
+## RHEL8 Specific Setup
+
+### SELinux Configuration
+
+Configure SELinux for Intric:
+
+```bash
+# Allow httpd to connect to network
+sudo setsebool -P httpd_can_network_connect 1
+
+# Allow httpd to connect to Redis
+sudo setsebool -P httpd_can_network_connect_db 1
+
+# Create custom policy if needed
+sudo ausearch -c 'python' --raw | audit2allow -M intric-python
+sudo semodule -i intric-python.pp
+```
+
+### Firewall Configuration
+
+```bash
+# Open required ports
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-port=8000/tcp  # Backend API
+sudo firewall-cmd --permanent --add-port=3000/tcp  # Frontend SvelteKit server
+sudo firewall-cmd --reload
+```
+
+### Podman Alternative to Docker
+
+RHEL8 uses Podman by default:
+
+```bash
+# Build with Podman
+podman build -t intric-backend:latest ./backend
+
+# Run with Podman
+podman run -d --name intric-backend \
+  --env-file .env \
+  -p 8000:8000 \
+  intric-backend:latest
+
+# Generate systemd service from container
+podman generate systemd --name intric-backend > /etc/systemd/system/intric-backend.service
+```
 
 ## Maintenance
 
-### Updating to a New Version
-1. Update the `IMAGE_TAG` in your `.env` file
-2. Pull the new images:
-   ```bash
-   docker compose pull
-   ```
-3. Restart the services:
-   ```bash
-   docker compose down
-   docker compose up -d
-   ```
+### Database Backups
 
-### Health Checks (Recommended for Production)
-Add health checks for all services to ensure they're running properly:
+Set up automated PostgreSQL backups:
 
-```yaml
-services:
-  backend:
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8123/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  
-  frontend:
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      
-  db:
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      
-  redis:
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+```bash
+# Create backup script: /opt/intric/scripts/backup.sh
+#!/bin/bash
+BACKUP_DIR="/var/backups/intric"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+DATABASE="intric"
+
+mkdir -p $BACKUP_DIR
+pg_dump -U postgres -d $DATABASE | gzip > $BACKUP_DIR/intric_$TIMESTAMP.sql.gz
+
+# Keep only last 7 days
+find $BACKUP_DIR -name "intric_*.sql.gz" -mtime +7 -delete
 ```
 
-> **Note**: The health endpoints like `/health` don't automatically exist in the codebase. You'll need to implement a health check endpoint in your backend service (typically returning a 200 OK status when the service is healthy) and in your frontend (typically a small static file or simple route that returns a 200 status). These health checks help Docker Compose determine if services are healthy and allow for proper dependency chaining using `depends_on` with the `condition: service_healthy` option.
+Add to crontab:
 
-### Scaling
-For higher loads, consider:
-- Scaling the worker service with multiple replicas
-- Separate database server with optimized configuration
-- Load balancing multiple frontend instances
+```bash
+0 2 * * * /opt/intric/scripts/backup.sh
+```
+
+### Monitoring
+
+Monitor key metrics:
+
+- API response times
+- Worker queue depth
+- Database connections
+- Memory and CPU usage
+
+### Updates
+
+To update Intric:
+
+1. Backup database
+2. Update code:
+   ```bash
+   cd /opt/intric
+   git pull origin main
+   ```
+3. Update dependencies:
+   ```bash
+   cd backend
+   poetry install
+   poetry run alembic upgrade head
+   ```
+4. Rebuild frontend:
+   ```bash
+   cd ../frontend
+   pnpm install
+   pnpm run build
+   ```
+5. Restart services:
+   ```bash
+   sudo systemctl restart intric-backend intric-worker intric-frontend
+   ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Database Connection Failures**:
-   - Check `POSTGRES_PASSWORD` is correctly set
-   - Verify database service is healthy: `docker compose ps db`
-   - Check logs: `docker compose logs db`
+1. **Database Connection Issues**
 
-2. **Frontend Can't Reach Backend**:
-   - Verify network connectivity between containers
-   - Check `INTRIC_BACKEND_URL` is set correctly
-   - Check logs: `docker compose logs frontend`
+   - Check PostgreSQL is running: `systemctl status postgresql-13`
+   - Verify pgvector extension: `psql -d intric -c "SELECT * FROM pg_extension WHERE extname = 'vector';"`
+   - Check connection settings in .env
 
-3. **Authentication Issues**:
-   - Ensure `JWT_SECRET` is consistent across services
-   - Check MobilityGuard settings if using OIDC
+2. **Worker Not Processing Jobs**
 
-4. **Worker Not Processing Tasks**:
-   - Check Redis connection: `docker compose exec redis redis-cli ping`
-   - Verify worker logs: `docker compose logs worker`
+   - Check Redis connectivity: `redis-cli ping`
+   - Check worker logs: `journalctl -u intric-worker -f`
+   - Verify ARQ queue: `redis-cli KEYS arq:*`
 
-5. **Registry Authentication Issues**:
-   - Check if you can log in to your registry: `docker login ${NEXUS_REGISTRY}`
-   - Verify your credentials are correctly set in your CI/CD pipeline
+3. **WebSocket Connection Failures**
 
-6. **File Processing Issues**:
-   - Check file size limits in environment variables
-   - Verify worker logs for specific error messages
-   - Ensure sufficient disk space is available
+   - Check HAProxy WebSocket backend configuration (if using HAProxy)
+   - Verify firewall allows WebSocket connections
+   - Ensure backend WebSocket endpoints are accessible
 
-### Log Analysis
+4. **High Memory Usage**
+   - Adjust worker count in Gunicorn
+   - Configure PostgreSQL connection pooling
+   - Monitor vector index size and optimize as needed
 
-When troubleshooting, check logs for specific services:
+### Log Locations
 
-```bash
-# View logs for a specific service
-docker compose logs -f backend
+- Backend API: `/var/log/intric/api.log` or `journalctl -u intric-backend`
+- Worker: `/var/log/intric/worker.log` or `journalctl -u intric-worker`
+- Frontend: `journalctl -u intric-frontend`
+- HAProxy: `/var/log/haproxy.log` (if using HAProxy)
+- PostgreSQL: `/var/lib/pgsql/13/data/log/`
 
-# View logs for multiple services
-docker compose logs -f backend worker
+### Performance Tuning
 
-# View recent logs with limited output
-docker compose logs --tail=100 backend
-```
+1. **PostgreSQL Optimization**
 
-Look for ERROR or WARNING level messages that might indicate configuration or connection issues.
+   ```sql
+   -- Optimize for vector searches
+   SET maintenance_work_mem = '1GB';
+   SET max_parallel_maintenance_workers = 4;
 
-## Web Server Configuration
+   -- Create indexes
+   CREATE INDEX ON info_blob_chunks USING ivfflat (embedding vector_cosine_ops);
+   ```
 
-### Nginx (Default)
+2. **API Performance**
 
-The default deployment uses Nginx to serve the frontend static files. The Dockerfile includes an Nginx configuration that:
-- Serves the built SvelteKit application 
-- Handles compression
-- Manages routing for SPA functionality
-- Listens on port 3000 (configurable)
+   - Increase Gunicorn workers based on CPU cores
+   - Enable response caching where appropriate
+   - Use connection pooling for database
 
-### Alternative Web Servers
-
-While Nginx is included in the default configuration, you can replace it with other web servers according to your organization's needs and expertise:
-
-1. **Apache HTTPd**:
-   - Popular alternative with strong security features
-   - Requires a custom Dockerfile replacing Nginx with Apache
-
-2. **Caddy**:
-   - Modern web server with automatic HTTPS
-   - Simpler configuration than Nginx or Apache
-
-3. **Traefik**:
-   - Modern proxy with automatic service discovery
-   - Excellent for microservices architectures
-   - Can handle both routing and SSL/TLS termination
-
-To implement an alternative web server, create a custom frontend Dockerfile that uses your preferred server instead of Nginx, and ensure it correctly serves the SvelteKit static files with proper routing configuration.
+3. **Frontend Performance**
+   - Configure response compression in SvelteKit
+   - Set proper cache headers for static assets
+   - Use CDN for static file delivery
+   - Optimize SvelteKit build settings

@@ -1,6 +1,7 @@
 # Contributing to Intric
 
 ## TLDR
+
 - **Code Standards**: Follow PEP 8 for Python, project ESLint for frontend, and DDD principles
 - **Workflow**: Feature branches, conventional commits, and test coverage requirements
 - **Pull Requests**: Clear descriptions, reference issues, and maintain documentation
@@ -10,6 +11,7 @@
 Thank you for your interest in contributing to Intric! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
+
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
@@ -26,11 +28,13 @@ Our community is dedicated to providing a harassment-free experience for everyon
 ## Getting Started
 
 1. **Fork the Repository**:
+
    - Fork the Intric repository to your GitHub account.
-   - Clone your fork locally: `git clone https://github.com/YOUR_USERNAME/intric.git`
+   - Clone your fork locally: `git clone https://github.com/YOUR_USERNAME/intric-community.git`
 
 2. **Set Up Development Environment**:
-   - Follow the instructions in the [Development Guide](DEVELOPMENT.md) to set up your local environment.
+
+   - Follow the instructions in the [Development Guide](development-guide.md) to set up your local environment.
 
 3. **Find an Issue**:
    - Look for open issues in our GitHub issue tracker.
@@ -42,15 +46,19 @@ Our community is dedicated to providing a harassment-free experience for everyon
 We follow a branch-based workflow:
 
 1. **Create a Feature Branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
+
    or
+
    ```bash
    git checkout -b fix/issue-description
    ```
 
 2. **Commit Your Changes**:
+
    - We follow conventional commit messages:
      ```
      feat: add new feature X
@@ -72,16 +80,19 @@ We follow a branch-based workflow:
 1. **Create a Pull Request** from your feature branch to the main Intric repository.
 
 2. **Pull Request Title and Description**:
+
    - Use a clear, descriptive title.
    - Include a detailed description explaining the changes and their purpose.
    - Reference any related issues using GitHub keywords: "Fixes #123" or "Resolves #456".
 
 3. **Code Review**:
+
    - All PRs require at least one review from a maintainer.
    - Address all feedback from reviewers.
    - Make requested changes in new commits, then squash them before merging.
 
 4. **CI Checks**:
+
    - All tests must pass before merging.
    - Code must meet linting standards.
    - Documentation must be updated if applicable.
@@ -93,18 +104,23 @@ We follow a branch-based workflow:
 ## Coding Standards
 
 ### Python Code
+
 - Follow PEP 8 style guide.
 - Use type hints for all function parameters and return values.
-- Write docstrings for all functions, classes, and modules.
+- Write docstrings for all public functions, classes, and modules.
+- Use Poetry for dependency management.
 - Maintain at least 80% test coverage for new code.
 
 ### Frontend Code
+
 - Follow the project's ESLint configuration.
 - Use SvelteKit conventions for components and routing.
+- Use pnpm for package management.
 - Maintain responsive and accessible design principles.
 - Document component props and events.
 
 ### Domain-Driven Design
+
 - Follow the DDD principles outlined in [Domain Driven Design](domain-driven-design.md).
 - Ensure new features align with the existing architecture.
 - Organize code by business domain, not technical function.
@@ -113,9 +129,10 @@ We follow a branch-based workflow:
 ## Testing
 
 - Write tests for all new functionality.
-- Run existing tests before submitting a PR: `poetry run pytest` for backend, `pnpm test` for frontend.
+- Run existing tests before submitting a PR: `poetry run pytest` for backend, `pnpm run test` for frontend.
 - Include both unit and integration tests when appropriate.
 - Follow test naming conventions and organize tests by domain.
+- Backend tests are located in `tests/` directory, following the domain structure.
 
 ## Documentation
 

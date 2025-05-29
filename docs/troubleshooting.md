@@ -1,288 +1,294 @@
 # Intric Troubleshooting Guide
 
 ## TLDR
-- **Check Logs**: Use `docker-compose logs <service_name>` to identify errors
-- **Verify Configuration**: Ensure environment variables are set correctly
-- **Database Issues**: Check connections with `docker-compose exec db psql -U postgres`
-- **Network Problems**: Verify containers can communicate with each other
-- **Common Fixes**: Most issues can be resolved by checking container status, logs, and config files
+
+- **Check Logs**: Use `docker compose logs <service_name>` or `journalctl -u <service_name>` for systemd services
+- **Verify Configuration**: Ensure environment variables are set correctly in `.env` files
+- **Database Issues**: Check PostgreSQL with pgvector is running and accessible
+- **Network Problems**: Verify services can communicate, check ports 8000 (backend) and 3000 (frontend)
+- **Common Fixes**: Most issues stem from missing dependencies, incorrect config, or port conflicts
 
 This guide provides solutions for common issues encountered when deploying, developing, or using the Intric platform.
 
 ## Table of Contents
-- [Deployment Issues](#deployment-issues)
-- [Docker Issues](#docker-issues)
+
+- [Development Environment Issues](#development-environment-issues)
+- [Production Deployment Issues](#production-deployment-issues)
 - [Database Issues](#database-issues)
-- [Network Issues](#network-issues)
 - [Authentication Issues](#authentication-issues)
 - [LLM Integration Issues](#llm-integration-issues)
 - [Frontend Issues](#frontend-issues)
 - [Backend Issues](#backend-issues)
+- [Worker Issues](#worker-issues)
 - [Performance Issues](#performance-issues)
 - [Common Error Messages](#common-error-messages)
 - [Getting Help](#getting-help)
 
-## Deployment Issues
+## Development Environment Issues
 
-### Container Startup Failures
-
-**Symptoms:**
-- Containers exit immediately after starting
-- Services show as "Exited" in `docker-compose ps`
-
-**Possible Solutions:**
-1. Check container logs:
-   ```bash
-   docker-compose logs <service_name>
-   ```
-
-2. Verify environment variables:
-   ```bash
-   docker-compose config
-   ```
-
-3. Ensure database initialization has been run:
-   ```bash
-   docker-compose --profile init up db-init
-   ```
-
-4. Check disk space:
-   ```bash
-   df -h
-   ```
-
-### Missing or Incorrect Environment Variables
+### Initial Setup Problems
 
 **Symptoms:**
-- Services fail with configuration errors
-- "Key not found" or "Missing required configuration" errors
 
-**Possible Solutions:**
-1. Verify your `.env` file exists and contains all required variables
-2. Compare your `.env` file with `.env.example`
-3. Check for typos in variable names
-4. Ensure sensitive values are properly escaped
+- Poetry install fails
+- pnpm install fails
+- Services won't start
 
-### Image Pull Failures
+**Solutions:**
+
+1. Verify Python version (3.11+):
+
+   ```bash
+   python --version
+   ```
+
+2. Verify Node.js version (18+) and pnpm:
+
+   ```bash
+   node --version
+   pnpm --version
+   ```
+
+3. Ensure Docker services are running:
+
+   ```bash
+   cd backend
+   docker compose up -d
+   docker compose ps
+   ```
+
+4. Check if ports are already in use:
+   ```bash
+   lsof -i :8000  # Backend
+   lsof -i :3000  # Frontend
+   lsof -i :5432  # PostgreSQL
+   lsof -i :6379  # Redis
+   ```
+
+### Missing Environment Variables
 
 **Symptoms:**
-- "Error pulling image" messages
-- Authentication errors with Docker registry
 
-**Possible Solutions:**
-1. Verify registry authentication:
+- "Missing required configuration" errors
+- Services fail to start
+
+**Solutions:**
+
+1. Create environment files from templates:
+
    ```bash
-   docker login ${NEXUS_REGISTRY}
+   # Backend
+   cp backend/.env.template backend/.env
+
+   # Frontend
+   cp frontend/apps/web/.env.example frontend/apps/web/.env
    ```
 
-2. Check image tag exists:
-   ```bash
-   docker pull ${NEXUS_REGISTRY}/intric/backend:${IMAGE_TAG}
-   ```
+2. Edit `.env` files and set required values:
+   - Backend: `JWT_SECRET`, `POSTGRES_PASSWORD`, LLM API keys
+   - Frontend: `JWT_SECRET` (must match backend), `INTRIC_BACKEND_URL`
 
-3. Ensure proper network connectivity to the registry
-
-4. Verify registry URL is correct in `.env` file
-
-## Docker Issues
-
-### Volume Permission Issues
+### Database Initialization Fails
 
 **Symptoms:**
-- Permission denied errors in logs
-- Services unable to write to volumes
 
-**Possible Solutions:**
-1. Check ownership of volume directories:
+- "Relation does not exist" errors
+- Cannot login with default credentials
+
+**Solutions:**
+
+1. Ensure PostgreSQL is running:
+
    ```bash
-   ls -la /path/to/docker/volumes
+   docker compose ps db
    ```
 
-2. Adjust permissions:
+2. Run database initialization:
+
    ```bash
-   sudo chown -R 1000:1000 /path/to/docker/volumes
+   cd backend
+   poetry run python init_db.py
    ```
 
-3. Use explicit volume configurations in docker-compose.yml:
-   ```yaml
-   volumes:
-     postgres_data:
-       driver: local
-       driver_opts:
-         type: none
-         device: /path/to/data
-         o: bind
+3. Check migrations are up to date:
+   ```bash
+   poetry run alembic upgrade head
    ```
 
-### Resource Constraints
+## Production Deployment Issues
+
+### Systemd Service Failures
 
 **Symptoms:**
-- Services are slow or crash unexpectedly
-- Out of memory errors
 
-**Possible Solutions:**
-1. Check Docker resource usage:
+- Services fail to start
+- Services restart repeatedly
+
+**Solutions:**
+
+1. Check service status and logs:
+
    ```bash
-   docker stats
+   sudo systemctl status intric-backend
+   sudo journalctl -u intric-backend -f
    ```
 
-2. Increase allocated resources in Docker Desktop (if using)
+2. Verify working directory and paths in service file:
 
-3. Configure resource limits in docker-compose.yml:
-   ```yaml
-   services:
-     backend:
-       deploy:
-         resources:
-           limits:
-             cpus: '2'
-             memory: 2G
+   ```bash
+   sudo cat /etc/systemd/system/intric-backend.service
    ```
 
-### Network Conflicts
+3. Ensure virtual environment exists:
+   ```bash
+   ls -la /opt/intric/backend/.venv
+   ```
+
+### HAProxy Configuration Issues
 
 **Symptoms:**
-- Port binding errors
-- Services unable to communicate
 
-**Possible Solutions:**
-1. Check for port conflicts:
+- 502 Bad Gateway errors
+- Cannot reach frontend or backend
+- WebSocket connections fail
+
+**Solutions:**
+
+1. Verify backend is running on correct port (8000):
+
    ```bash
-   sudo lsof -i :3000
-   sudo lsof -i :8123
+   curl http://localhost:8000/api/v1/health
    ```
 
-2. Change port mappings in docker-compose.yml:
-   ```yaml
-   services:
-     frontend:
-       ports:
-         - "3001:3000"  # Change 3001 to an unused port
+2. Verify frontend is running on correct port (3000):
+
+   ```bash
+   curl http://localhost:3000
    ```
 
-3. Use a different network name in docker-compose.yml if there are network namespace conflicts
+3. Check HAProxy configuration:
+
+   ```bash
+   sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+   ```
+
+4. Ensure WebSocket support in HAProxy:
+   - Check WebSocket backend configuration
+   - Verify upgrade headers are handled correctly
+
+### RHEL8/SELinux Issues
+
+**Symptoms:**
+
+- Permission denied errors
+- Services can't connect to each other
+
+**Solutions:**
+
+1. Check SELinux status:
+
+   ```bash
+   getenforce
+   ```
+
+2. Allow httpd network connections:
+
+   ```bash
+   sudo setsebool -P httpd_can_network_connect 1
+   sudo setsebool -P httpd_can_network_connect_db 1
+   ```
+
+3. Create custom SELinux policy if needed:
+   ```bash
+   sudo ausearch -c 'python' --raw | audit2allow -M intric-python
+   sudo semodule -i intric-python.pp
+   ```
 
 ## Database Issues
 
-### Connection Failures
+### PostgreSQL Connection Failures
 
 **Symptoms:**
+
 - "Could not connect to database" errors
-- Backend service restarts repeatedly
+- psycopg2.OperationalError
 
-**Possible Solutions:**
-1. Verify database service is running:
+**Solutions:**
+
+1. Verify PostgreSQL is running:
+
    ```bash
-   docker-compose ps db
+   sudo systemctl status postgresql-13  # RHEL8
+   docker compose ps db                 # Development
    ```
 
-2. Check database logs:
-   ```bash
-   docker-compose logs db
+2. Check connection parameters in `.env`:
+
+   ```
+   POSTGRES_HOST=localhost  # or actual hostname
+   POSTGRES_PORT=5432
+   POSTGRES_USER=intric
+   POSTGRES_PASSWORD=<your-password>
+   POSTGRES_DB=intric
    ```
 
-3. Ensure database credentials are correct in `.env` file
-
-4. Try connecting manually:
+3. Test connection manually:
    ```bash
-   docker-compose exec db psql -U postgres
+   psql -h localhost -p 5432 -U intric -d intric
    ```
 
-### Migration Errors
+### pgvector Extension Issues
 
 **Symptoms:**
-- Database schema errors
-- "Relation does not exist" errors
 
-**Possible Solutions:**
-1. Run database initialization:
-   ```bash
-   docker-compose --profile init up db-init
-   ```
+- Vector operations fail
+- "type vector does not exist" errors
 
-2. Check migration logs:
-   ```bash
-   docker-compose logs db-init
-   ```
+**Solutions:**
 
-3. For development, try resetting the database:
-   ```bash
-   docker-compose down -v  # WARNING: This deletes all data!
-   docker-compose up -d db
-   # Then run initialization again
-   ```
+1. Verify pgvector is installed:
 
-### pgvector Issues
-
-**Symptoms:**
-- Vector search not working
-- "Extension not available" errors
-
-**Possible Solutions:**
-1. Verify pgvector extension is installed:
    ```sql
-   SELECT * FROM pg_extension WHERE extname = 'vector';
+   \dx vector
    ```
 
-2. Install the extension manually if needed:
+2. Create extension if missing:
+
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
 
-3. Ensure you're using PostgreSQL 13 or higher with pgvector extension
-
-4. Check vector dimensions match in your application and database:
+3. Check vector column exists:
    ```sql
-   SELECT column_name, data_type 
-   FROM information_schema.columns 
-   WHERE table_name = 'embeddings';
+   \d info_blob_chunks
    ```
 
-## Network Issues
-
-### Internal Service Communication
+### Migration Problems
 
 **Symptoms:**
-- Services can't communicate with each other
-- "Connection refused" errors
 
-**Possible Solutions:**
-1. Check Docker network:
+- Database schema out of sync
+- "Column does not exist" errors
+
+**Solutions:**
+
+1. Check current migration status:
+
    ```bash
-   docker network inspect intric_default
+   cd backend
+   poetry run alembic current
    ```
 
-2. Verify service names are used as hostnames:
+2. Apply pending migrations:
+
    ```bash
-   docker-compose exec backend ping redis
+   poetry run alembic upgrade head
    ```
 
-3. Ensure all services are on the same Docker network
-
-### External Access Issues
-
-**Symptoms:**
-- Can't access frontend from browser
-- API requests fail from external clients
-
-**Possible Solutions:**
-1. Check port forwarding:
+3. If migrations are stuck:
    ```bash
-   docker-compose ps
-   ```
-
-2. Verify firewall settings:
-   ```bash
-   sudo ufw status
-   ```
-
-3. If using a reverse proxy, check its configuration
-
-4. Ensure `SERVICE_FQDN_FRONTEND` is set correctly in production
-
-5. Check if your service is listening on the correct interface:
-   ```bash
-   docker-compose exec frontend netstat -tulpn
+   poetry run alembic stamp head  # Mark as current
+   poetry run alembic upgrade head # Apply any new ones
    ```
 
 ## Authentication Issues
@@ -290,376 +296,406 @@ This guide provides solutions for common issues encountered when deploying, deve
 ### JWT Token Problems
 
 **Symptoms:**
+
 - "Invalid token" errors
-- Users get logged out unexpectedly
+- 401 Unauthorized responses
+- Users logged out unexpectedly
 
-**Possible Solutions:**
-1. Verify `JWT_SECRET` is set and consistent across restarts
+**Solutions:**
 
-2. Check token expiration time (`JWT_EXPIRY_TIME`) is appropriate
+1. Verify JWT_SECRET matches between frontend and backend:
 
-3. Ensure clock synchronization between server and clients
+   ```bash
+   # Backend .env
+   grep JWT_SECRET backend/.env
 
-4. Verify JWT configuration with a tool like jwt.io
+   # Frontend .env
+   grep JWT_SECRET frontend/apps/web/.env
+   ```
 
-5. Check browser console for CORS issues with authentication headers
+2. Check token in browser DevTools:
+
+   - Network tab → Request headers → Authorization
+   - Should be: `Bearer <token>`
+
+3. Decode token to check expiry:
+   ```bash
+   # Use jwt.io or similar tool
+   ```
 
 ### Login Failures
 
 **Symptoms:**
-- Users unable to log in
-- Authentication errors in logs
 
-**Possible Solutions:**
-1. Check credentials in development setup:
-   ```
-   Default credentials: user@example.com / Password1!
+- Cannot login with credentials
+- "Invalid credentials" error
+
+**Solutions:**
+
+1. For development, use default credentials:
+
+   - Email: `user@example.com`
+   - Password: `Password1!`
+
+2. Verify user exists in database:
+
+   ```sql
+   SELECT email, username FROM users WHERE email = 'user@example.com';
    ```
 
-2. Verify authentication flow in logs:
+3. Check password hashing:
    ```bash
-   docker-compose logs backend | grep -i auth
+   # Backend logs should show bcrypt operations
+   docker compose logs backend | grep -i auth
    ```
 
-3. For MobilityGuard integration, check OIDC configuration values
+### API Key Authentication Issues
 
-4. Verify that the authentication endpoint is responding correctly:
+**Symptoms:**
+
+- API key not working
+- "Invalid API key" errors
+
+**Solutions:**
+
+1. Check API key header name in config:
+
    ```bash
-   curl -X POST http://localhost:8123/api/v1/auth/login -d '{"email":"user@example.com","password":"Password1!"}'
+   grep API_KEY_HEADER_NAME backend/.env
+   # Default is "example", production should be "X-API-Key"
+   ```
+
+2. Verify API key format in request:
+   ```bash
+   curl -H "X-API-Key: your-api-key" http://localhost:8000/api/v1/endpoint
    ```
 
 ## LLM Integration Issues
 
-### API Key Problems
+### Missing or Invalid API Keys
 
 **Symptoms:**
-- "Invalid API key" errors
-- LLM responses failing
 
-**Possible Solutions:**
-1. Verify API keys are set correctly in `.env` file
+- "API key not found" errors
+- LLM features not working
 
-2. Check API key validity with the provider's tools
+**Solutions:**
 
-3. Ensure you have sufficient quota/credits with the LLM provider
+1. Verify at least one LLM provider is configured:
 
-4. Check for any IP restrictions on API keys
-
-5. Verify that LLM API keys have been loaded by the application:
    ```bash
-   docker-compose exec backend python -c "import os; print('OPENAI_API_KEY exists:', bool(os.environ.get('OPENAI_API_KEY')))"
+   grep -E "OPENAI_API_KEY|ANTHROPIC_API_KEY" backend/.env
    ```
 
-### Response Timeouts
+2. Test API key validity:
+
+   ```bash
+   # For OpenAI
+   curl https://api.openai.com/v1/models \
+     -H "Authorization: Bearer $OPENAI_API_KEY"
+   ```
+
+3. Check environment variables are loaded:
+   ```bash
+   cd backend
+   poetry run python -c "import os; print('Keys:', [k for k in os.environ if 'API_KEY' in k])"
+   ```
+
+### Model Configuration Issues
 
 **Symptoms:**
-- LLM responses take too long or time out
-- Incomplete responses
 
-**Possible Solutions:**
-1. Increase timeout settings in the application
+- "Model not found" errors
+- Wrong model being used
 
-2. Check network connectivity to LLM provider
+**Solutions:**
 
-3. Verify outbound internet access is available for backend container
+1. Check available models in the database:
 
-4. Consider reducing model complexity or prompt length
+   ```sql
+   SELECT name, model_id, provider FROM completion_models WHERE is_active = true;
+   ```
 
-5. Try a different LLM provider to rule out provider-specific issues
-
-### Content Filtering Issues
-
-**Symptoms:**
-- Responses are blocked by LLM provider filters
-- "Content policy violation" errors
-
-**Possible Solutions:**
-1. Review prompt templates for potentially problematic content
-
-2. Consider using a different LLM provider to rule out provider-specific filtering issues
-
-3. Check the prompt structure to ensure it follows provider guidelines
-
-4. If permitted by your provider, check their documentation for any available content filter configuration options
+2. Verify model configuration in spaces:
+   ```sql
+   SELECT s.name, cm.name as model_name
+   FROM spaces s
+   JOIN completion_models cm ON s.completion_model_id = cm.id;
+   ```
 
 ## Frontend Issues
 
-### UI Rendering Problems
+### Build Failures
 
 **Symptoms:**
-- Components not rendering correctly
-- Visual glitches or styling issues
 
-**Possible Solutions:**
-1. Clear browser cache and reload
+- pnpm build fails
+- Missing dependencies
 
-2. Check browser console for JavaScript errors
+**Solutions:**
 
-3. Verify CSS is loading properly
+1. Clean install dependencies:
 
-4. Test in a different browser to isolate the issue
-
-5. Check if all frontend dependencies are loading correctly:
    ```bash
-   docker-compose exec frontend ls -la /usr/share/nginx/html
+   cd frontend
+   rm -rf node_modules pnpm-lock.yaml
+   pnpm install
+   pnpm run setup
    ```
 
-### State Management Issues
+2. Check Node.js version (should be 18+):
+   ```bash
+   node --version
+   ```
+
+### Cannot Connect to Backend
 
 **Symptoms:**
-- UI gets out of sync with backend
-- Unexpected behavior after user actions
 
-**Possible Solutions:**
-1. Check Svelte store implementations
+- API calls fail
+- "Network error" in console
 
-2. Verify API responses in Network tab
+**Solutions:**
 
-3. Review component lifecycle management
+1. Verify backend URL in frontend config:
 
-4. Add more detailed logging to identify where state becomes inconsistent
+   ```bash
+   grep INTRIC_BACKEND_URL frontend/apps/web/.env
+   # Should be http://localhost:8000 for dev
+   ```
 
-### Performance Problems
+2. Check CORS settings if in production
+3. Verify backend is accessible:
+   ```bash
+   curl http://localhost:8000/api/v1/health
+   ```
+
+### WebSocket Connection Issues
 
 **Symptoms:**
-- Slow UI rendering
-- Delayed responses to user interactions
 
-**Possible Solutions:**
-1. Check for memory leaks in browser dev tools
+- Real-time updates not working
+- WebSocket errors in console
 
-2. Review component re-rendering patterns
+**Solutions:**
 
-3. Consider implementing pagination for large datasets
+1. Check WebSocket endpoint:
 
-4. Optimize frontend bundle size
-
-5. Use performance profiling tools to identify bottlenecks:
    ```javascript
-   console.time('operation');
-   // Code to measure
-   console.timeEnd('operation');
+   // Should connect to ws://localhost:8000/ws
    ```
+
+2. Verify no proxy is blocking WebSocket upgrade (if using HAProxy)
+3. Check browser console for specific errors
+4. Ensure backend WebSocket handlers are properly configured
 
 ## Backend Issues
 
-### API Endpoint Failures
+### Import Errors
 
 **Symptoms:**
-- Specific API endpoints return errors
-- Unexpected response formats
 
-**Possible Solutions:**
-1. Check backend logs for detailed error messages:
+- ModuleNotFoundError
+- ImportError
+
+**Solutions:**
+
+1. Ensure you're in Poetry environment:
+
    ```bash
-   docker-compose logs backend
+   cd backend
+   poetry shell
+   # or use poetry run prefix
    ```
 
-2. Review API route implementation for that endpoint
-
-3. Verify request format matches expected schema
-
-4. Test endpoint directly with curl or Postman:
+2. Reinstall dependencies:
    ```bash
-   curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8123/api/v1/endpoint
+   poetry install
    ```
 
-### Worker Task Failures
+### Gunicorn Worker Timeout
 
 **Symptoms:**
-- Background tasks fail or get stuck
-- Document processing doesn't complete
 
-**Possible Solutions:**
-1. Check worker logs:
+- Worker timeout errors
+- 502 errors after 30 seconds
+
+**Solutions:**
+
+1. Increase worker timeout in run.sh:
+
    ```bash
-   docker-compose logs worker
+   --timeout 120  # Increase from default
    ```
 
-2. Verify Redis connection:
-   ```bash
-   docker-compose exec redis redis-cli ping
-   ```
+2. Check for long-running synchronous operations
+3. Consider using background tasks for heavy operations
 
-3. Check for resource constraints affecting worker
+## Worker Issues
 
-4. Ensure task queue is processing correctly:
-   ```bash
-   docker-compose exec redis redis-cli LLEN arq:queue
-   ```
-
-5. Try requeuing stuck tasks:
-   ```bash
-   docker-compose exec redis redis-cli DEL arq:job:YOUR_JOB_ID
-   ```
-
-### Domain Logic Issues
+### ARQ Worker Not Processing Jobs
 
 **Symptoms:**
-- Unexpected application behavior
-- Business rules not being enforced correctly
 
-**Possible Solutions:**
-1. Check domain entity implementations
+- Tasks stuck in queue
+- Background jobs not completing
 
-2. Verify service layer logic
+**Solutions:**
 
-3. Add more detailed logging for domain operations
+1. Check worker is running:
 
-4. Review the affected domain's test coverage
+   ```bash
+   ps aux | grep arq
+   ```
+
+2. Verify Redis connectivity:
+
+   ```bash
+   redis-cli ping
+   ```
+
+3. Check job queue:
+
+   ```bash
+   redis-cli
+   > KEYS arq:*
+   > LLEN arq:queue:default
+   ```
+
+4. Monitor worker logs:
+   ```bash
+   journalctl -u intric-worker -f
+   ```
+
+### Task Failures
+
+**Symptoms:**
+
+- Jobs marked as failed
+- Retry count exceeded
+
+**Solutions:**
+
+1. Check task implementation for errors
+2. Verify external dependencies (file paths, API access)
+3. Increase task timeout if needed
+4. Check worker has necessary permissions
 
 ## Performance Issues
 
-### Slow Query Performance
+### Slow Vector Search
 
 **Symptoms:**
-- Database queries take too long
-- API responses are delayed
 
-**Possible Solutions:**
-1. Check database indexes:
+- Search queries timeout
+- High CPU usage during search
+
+**Solutions:**
+
+1. Check vector index exists:
+
    ```sql
-   SELECT * FROM pg_indexes;
+   \d info_blob_chunks
    ```
 
-2. Review query performance with EXPLAIN:
+2. Create appropriate index:
+
    ```sql
-   EXPLAIN ANALYZE SELECT * FROM table WHERE condition;
+   CREATE INDEX ON info_blob_chunks USING ivfflat (embedding vector_cosine_ops);
    ```
 
-3. Consider optimizing vector search parameters:
+3. Tune index parameters:
    ```sql
-   ALTER INDEX embedding_idx SET (probes = 10);
+   ALTER INDEX info_blob_chunks_embedding_idx SET (lists = 100);
    ```
 
-4. Monitor database connection pool usage
-
-5. Check for N+1 query patterns in ORM code
-
-### Memory Usage Problems
+### High Memory Usage
 
 **Symptoms:**
-- Services use excessive memory
-- Out of memory errors
 
-**Possible Solutions:**
-1. Monitor memory usage:
+- OOM killer terminates services
+- Slow response times
+
+**Solutions:**
+
+1. Check memory usage:
+
    ```bash
-   docker stats
+   free -h
+   top -o %MEM
    ```
 
-2. Check for memory leaks in backend code
+2. Tune PostgreSQL memory:
 
-3. Optimize batch processing sizes
-
-4. Adjust PostgreSQL memory settings:
-   ```
-   shared_buffers
-   work_mem
-   effective_cache_size
-   ```
-
-### High CPU Usage
-
-**Symptoms:**
-- High CPU utilization
-- Slow overall system response
-
-**Possible Solutions:**
-1. Monitor CPU usage per container:
    ```bash
-   docker stats
+   # postgresql.conf
+   shared_buffers = 1GB
+   effective_cache_size = 3GB
    ```
 
-2. Identify CPU-intensive operations in logs
-
-3. Consider scaling horizontally for better load distribution
-
-4. Review algorithms for optimization opportunities
-
-5. Profile Python code to find CPU-intensive operations:
-   ```python
-   import cProfile
-   cProfile.run('function_to_profile()')
-   ```
+3. Limit Gunicorn workers based on available RAM
+4. Configure connection pooling properly
 
 ## Common Error Messages
 
-### "No such container"
+### "SQLSTATE[08006] - connection refused"
 
-**Possible Solutions:**
-1. Check if all containers are running:
-   ```bash
-   docker-compose ps
-   ```
+- PostgreSQL not running or wrong connection params
+- Check POSTGRES_HOST and POSTGRES_PORT
 
-2. Rebuild and restart containers:
-   ```bash
-   docker-compose up -d --build
-   ```
+### "TypeError: expected string or bytes-like object"
 
-### "Connection refused"
+- Usually indicates None value where string expected
+- Check for missing environment variables
 
-**Possible Solutions:**
-1. Verify the service is running
-2. Check hostname and port are correct
-3. Ensure network connectivity between services
-4. Check if the service is listening on the expected interface (not just localhost)
+### "asyncpg.exceptions.UndefinedColumnError"
 
-### "Permission denied"
+- Database schema out of sync
+- Run migrations: `poetry run alembic upgrade head`
 
-**Possible Solutions:**
-1. Check file and directory permissions
-2. Verify container user has appropriate access
-3. Review volume mount configurations
-4. Use Docker user namespace mapping for persistent volume access
+### "redis.exceptions.ConnectionError"
 
-### "Out of memory"
+- Redis not running or wrong host/port
+- Check REDIS_HOST and REDIS_PORT
 
-**Possible Solutions:**
-1. Increase available memory for Docker
-2. Review memory-intensive operations
-3. Consider memory limitations in configuration
-4. Implement appropriate memory limits in docker-compose.yml
-5. Add swap space if necessary (though not recommended for production)
+### "413 Request Entity Too Large"
 
-### "Database is being accessed by other users"
-
-**Possible Solutions:**
-1. Check for connections to the database:
-   ```bash
-   docker-compose exec db psql -U postgres -c "SELECT * FROM pg_stat_activity;"
-   ```
-
-2. Terminate blocking connections if necessary:
-   ```bash
-   docker-compose exec db psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'postgres' AND pid <> pg_backend_pid();"
-   ```
-
-### "vector_eq_op_procedure doesn't exist"
-
-**Possible Solutions:**
-1. This typically indicates a pgvector installation issue
-2. Verify pgvector extension is installed correctly:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS vector;
-   ```
-3. Ensure you're using a compatible PostgreSQL version with pgvector
+- File upload exceeds limit
+- Check UPLOAD_MAX_FILE_SIZE in backend config
+- Adjust proxy settings if using HAProxy or other load balancer
 
 ## Getting Help
 
-If you're still experiencing issues after trying these troubleshooting steps:
+If you're still experiencing issues:
 
-1. Check GitHub issues for similar problems
-2. Join the community forum (email [digitalisering@sundsvall.se](mailto:digitalisering@sundsvall.se))
-3. Collect detailed logs and error messages to help with diagnosis:
+1. **Check existing resources:**
+
+   - GitHub Issues: [link]
+   - Documentation: `/docs` folder
+
+2. **Collect diagnostic information:**
+
    ```bash
-   docker-compose logs > intric-logs.txt
+   # System info
+   uname -a
+   python --version
+   node --version
+
+   # Service logs
+   journalctl -u intric-backend --since "1 hour ago" > backend.log
+
+   # Database status
+   psql -c "SELECT version();"
    ```
-4. Prepare a minimal reproduction case if possible
-5. Include your environment details when asking for help:
-   ```bash
-   docker version
-   docker-compose version
-   docker info
-   ```
+
+3. **Report issues with:**
+
+   - Clear description of the problem
+   - Steps to reproduce
+   - Error messages and logs
+   - Environment details (OS, versions)
+   - Configuration (sanitized)
+
+4. **Community support:**
+   - GitHub Discussions
+   - Email: [community contact]

@@ -1,15 +1,16 @@
 # Intric Development Guide
 
 ## TLDR
-- **Prerequisites**: Python 3.10+, Node.js 20+, Docker, Poetry, pnpm 8.9.0, Git, libmagic, ffmpeg
-- **Quick Setup**: 
+
+- **Prerequisites**: Python 3.11+, Node.js 18+, Docker, Poetry, pnpm 9.12.3, Git, libmagic, ffmpeg
+- **Quick Setup**:
   1. Clone repo
   2. Set up environment files:
      ```bash
      # For backend
-     cp backend/.env.local.example backend/.env
+     cp backend/.env.template backend/.env
      # For frontend
-     cp frontend/apps/web/.env.local.example frontend/apps/web/.env
+     cp frontend/apps/web/.env.example frontend/apps/web/.env
      ```
   3. Start infrastructure services:
      ```bash
@@ -23,23 +24,30 @@
      poetry run python init_db.py
      ```
   5. Start the services:
+
      ```bash
      # Terminal 1 - Backend
      cd backend
      poetry run start
-     
-     # Terminal 2 - Frontend
+
+     # Terminal 2 - Worker (optional)
+     cd backend
+     poetry run arq src.intric.worker.arq.WorkerSettings
+
+     # Terminal 3 - Frontend
      cd frontend
      pnpm install
-     pnpm run dev
+     pnpm run setup
+     pnpm -w run dev
      ```
+
   6. Access at http://localhost:3000 (login: user@example.com / Password1!)
-  7. (Optional) Run worker: `poetry run arq intric.worker.arq.WorkerSettings`
 - **Architecture**: Domain-driven design with clearly separated backend and frontend services
 
 This guide provides detailed instructions for setting up a development environment for the Intric platform and contributing to the project.
 
 ## Table of Contents
+
 - [Development Environment Setup](#development-environment-setup)
 - [Project Structure](#project-structure)
 - [Backend Development](#backend-development)
@@ -52,15 +60,17 @@ This guide provides detailed instructions for setting up a development environme
 ## Development Environment Setup
 
 ### Prerequisites
-- Python 3.10 or higher
-- Node.js 20 or higher
+
+- Python 3.11 or higher
+- Node.js 18 or higher
 - Poetry (Python dependency management)
-- pnpm 8.9.0 (Node.js package manager)
+- pnpm 9.12.3 (Node.js package manager)
 - Docker and Docker Compose
 - Git
 - libmagic and ffmpeg
 
 ### Additional system requirements
+
 To be able to use the platform to the fullest, install `libmagic` and `ffmpeg`:
 
 ```bash
@@ -73,66 +83,74 @@ sudo apt-get install ffmpeg
 Follow these steps to set up your development environment:
 
 1. **Clone the repository**:
+
    ```bash
-   git clone https://github.com/cagritest123/intric-docs.git
-   cd intric-docs
+   git clone https://github.com/intric-ai/intric-community.git
+   cd intric-community
    ```
 
 2. **Set up environment files**:
+
    ```bash
    # For backend development
-   cp backend/.env.local.example backend/.env
-   
+   cp backend/.env.template backend/.env
+
    # For frontend development
-   cp frontend/apps/web/.env.local.example frontend/apps/web/.env
+   cp frontend/apps/web/.env.example frontend/apps/web/.env
    ```
 
 3. **Start infrastructure services**:
+
    ```bash
    cd backend
    docker compose up -d
    ```
 
 4. **Set up backend**:
+
    ```bash
    # Make sure you're in the backend directory
    cd backend
-   
+
    # Install dependencies using Poetry
    poetry install
-   
+
    # Initialize database (first time only)
    poetry run python init_db.py
-   
+
    # Start the backend service
    poetry run start
    ```
 
 5. **Set up frontend**:
+
    ```bash
    # Navigate to the frontend directory
    cd frontend
-   
+
    # Install dependencies
    pnpm install
-   
-   # Start the frontend development server
-   pnpm run dev
+
+   # Set up packages
+   pnpm run setup
+
+   # Start the frontend development server (from frontend root)
+   pnpm -w run dev
    ```
 
-6. **Start the worker** (optional, in a third terminal):
+6. **Start the worker** (optional but recommended, in a third terminal):
    ```bash
    cd backend
-   poetry run arq intric.worker.arq.WorkerSettings
+   poetry run arq src.intric.worker.arq.WorkerSettings
    ```
 
 ### Accessing the Application
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8123
-- API documentation: http://localhost:8123/docs
-- **Default login credentials**: 
-  - Email: `user@example.com` 
+- Backend API: http://localhost:8000
+- API documentation: http://localhost:8000/docs
+- **Default login credentials**:
+  - Email: `user@example.com`
   - Password: `Password1!`
 
 > **Note**: These login credentials are automatically created when you run the database initialization step.
@@ -141,9 +159,10 @@ Follow these steps to set up your development environment:
 
 Intric uses different environment files for different components:
 
-1. **Backend Development**: 
+1. **Backend Development**:
+
    - File: `backend/.env`
-   - Template: `backend/.env.local.example`
+   - Template: `backend/.env.template`
    - Key settings:
      ```
      POSTGRES_HOST=localhost
@@ -156,10 +175,10 @@ Intric uses different environment files for different components:
 
 2. **Frontend Development**:
    - File: `frontend/apps/web/.env`
-   - Template: `frontend/apps/web/.env.local.example`
+   - Template: `frontend/apps/web/.env.example`
    - Key settings:
      ```
-     INTRIC_BACKEND_URL=http://localhost:8123
+     INTRIC_BACKEND_URL=http://localhost:8000
      JWT_SECRET=your_development_secret_key
      ```
 
@@ -167,42 +186,51 @@ Intric uses different environment files for different components:
 
 - **Database Connection Issues**: Verify your backend `.env` file has the correct connection details for PostgreSQL and Redis, pointing to `localhost` with the correct ports.
 
-- **Frontend Not Connecting to Backend**: Ensure your frontend environment file has `INTRIC_BACKEND_URL=http://localhost:8123`.
+- **Frontend Not Connecting to Backend**: Ensure your frontend environment file has `INTRIC_BACKEND_URL=http://localhost:8000`.
 
 ### Using Devcontainer for Development
 
 The project is configured to use a devcontainer, which allows you to develop in a consistent environment using Visual Studio Code and Docker. Follow these steps to get started:
 
 1. **Install Prerequisites**:
+
    - Ensure you have Docker installed on your machine.
    - Install Visual Studio Code and the Remote - Containers extension.
 
 2. **Copy Environment Files**:
+
    - Before starting development, you need to set up your environment files:
+
      ```bash
      # In the backend directory
-     cp .env.local.example .env
+     cp .env.template .env
 
      # In the frontend/apps/web directory
-     cp .env.local.example .env
+     cp .env.example .env
      ```
+
    - Remember to update these .env files with appropriate values.
 
 3. **Open the Project in a Devcontainer**:
+
    - Open the project folder in Visual Studio Code.
    - When prompted, or by clicking on the green icon in the bottom-left corner, select "Reopen in Container".
    - This will build the devcontainer as defined in `.devcontainer/devcontainer.json` and `.devcontainer/docker-compose.yml`.
 
 4. **Accessing Services**:
-   - The devcontainer setup will automatically forward ports 3000 and 8123, allowing you to access the frontend and any other services running on these ports.
+
+   - The devcontainer setup will automatically forward ports 3000 and 8000, allowing you to access the frontend and backend services running on these ports.
 
 5. **Post-Create Commands**:
+
    - After the container is created, the `postCreateCommand` specified in `.devcontainer/devcontainer.json` will run, setting up the environment.
 
 6. **Developing**:
+
    - You can now develop as usual within the container. The environment will have all necessary dependencies installed and configured.
 
    **Important Notes**:
+
    - Database migrations are not run automatically. After the container is created, you'll need to run:
      ```bash
      cd backend
@@ -211,15 +239,18 @@ The project is configured to use a devcontainer, which allows you to develop in 
    - You'll need to manually start both the backend and frontend services in separate terminal windows:
 
      For the backend:
+
      ```bash
      cd backend
      poetry run start
      ```
 
      For the frontend:
+
      ```bash
      cd frontend
-     pnpm run dev
+     pnpm run setup
+     pnpm -w run dev
      ```
 
      Running the frontend and backend in separate terminal windows gives you better control over each service's lifecycle. This makes it easier to restart individual services when needed, such as after installing new dependencies or when troubleshooting issues.
@@ -257,10 +288,9 @@ intric/
 │   │       ├── src/         # Source code
 │   │       │   ├── lib/     # Reusable components and utilities
 │   │       │   └── routes/  # Application routes
-│   │       └── .env.local.example # Environment template
+│   │       └── .env.example  # Environment template
 │   └── package.json         # Node.js dependencies
-├── docker-compose.yml       # Production deployment configuration
-└── .env.production.example  # Example environment variables
+└── README.md                # Project documentation
 ```
 
 For details on building Docker images and deployment configuration, please refer to the [Deployment Guide](./deployment-guide.md).
@@ -425,13 +455,13 @@ We use a [dependency injection framework](https://python-dependency-injector.ets
 
 ### Connecting Features
 
-Add the router in the main router (located at `src/intric/server/routers/__init__.py`) to connect the endpoints to the application.
+Add the router in the main router (located at `src/intric/server/routers.py`) to connect the endpoints to the application.
 
 ### Microservices
 
 The application is structured as a set of loosely coupled services:
 
-1. **Frontend Service** - SvelteKit application served by Nginx
+1. **Frontend Service** - SvelteKit Node.js server serving the application directly
 2. **Backend API** - FastAPI application handling business logic
 3. **Worker Service** - Background task processor
 4. **Database** - PostgreSQL with pgvector
@@ -478,7 +508,7 @@ Aim for high test coverage, especially for critical paths:
 
 The API is documented using OpenAPI/Swagger:
 
-- Access at `http://localhost:8123/docs` during development
+- Access at `http://localhost:8000/docs` during development
 - Generated from code annotations in FastAPI routes
 
 ### Code Documentation

@@ -4,16 +4,17 @@
 
 > **Architecture Summary**
 >
-> - **Core Components**: Frontend (SvelteKit/Nginx), Backend (FastAPI), Worker (ARQ/Python), Database (PostgreSQL with pgvector), Cache/Queue (Redis)
+> - **Core Components**: Frontend (SvelteKit Node.js server), Backend (FastAPI with Gunicorn/Uvicorn), Worker (ARQ/Python), Database (PostgreSQL with pgvector), Cache/Queue (Redis)
 > - **Data Flow**: REST API for client interaction, **WebSockets** for status updates, **SSE** for streaming chat responses, background processing via ARQ task queue.
 > - **Design Principles**: Domain-driven design, separation of concerns, and clean architecture.
 > - **Integration**: Vector search for knowledge retrieval, streaming for real-time responses.
 > - **Scalability**: Independent scaling of frontend, backend, and worker components.
-> - **Security**: JWT & API Key Authentication, bcrypt password hashing, RBAC via space memberships.
+> - **Security**: JWT (Bearer token) & API Key Authentication, bcrypt password hashing, RBAC via space memberships.
 
 This document provides a comprehensive overview of the Intric platform architecture, explaining how different components interact and the design principles behind the system.
 
 ## Table of Contents
+
 - [Architecture Overview](#architecture-overview)
 - [System Components](#system-components)
 - [Data Flow](#data-flow)
@@ -40,38 +41,39 @@ The Intric platform consists of these primary components:
 graph LR
     classDef component fill:#f5f5f5,stroke:#d3d3d3,stroke-width:1px,color:#333
 
-    Frontend["Frontend<br/>(SvelteKit/Nginx)"] <---> Backend["Backend<br/>(FastAPI)"]
+    Frontend["Frontend<br/>(SvelteKit Node.js)"] <---> Backend["Backend<br/>(FastAPI)"]
     Backend <---> Database["Database<br/>(PostgreSQL + pgvector)"]
     Backend <---> Worker["Worker<br/>Service (ARQ)"]
     Worker <---> Redis["Redis<br/>(Cache/Queue/PubSub)"]
 
     class Frontend,Backend,Database,Worker,Redis component
 ```
-*(Arrows indicate primary data flow directions. Real-time flows via WS/SSE also exist)*
+
+_(Arrows indicate primary data flow directions. Real-time flows via WS/SSE also exist)_
 
 ### Frontend Service
 
-| Aspect | Details |
-|--------|---------|
-| **Technology** | SvelteKit application served by Nginx |
-| **Responsibility** | Delivers the user interface and manages client-side state |
-| **Key Features** | • Responsive UI components<br>• Client-side routing<br>• State management using Svelte stores<br>• Real-time updates via **WebSockets** (for status) and **Server-Sent Events** (for chat streams) |
+| Aspect             | Details                                                                                                                                                                                                                                                                    |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Technology**     | SvelteKit Node.js server (serves application directly)                                                                                                                                                                                                                     |
+| **Responsibility** | Delivers the user interface and manages client-side state                                                                                                                                                                                                                  |
+| **Key Features**   | • Responsive UI components<br>• Client-side routing<br>• State management using Svelte stores<br>• Real-time updates via **WebSockets** (for status) and **Server-Sent Events** (for chat streams)<br>• TypeScript for type safety<br>• @intric/intric-js typed API client |
 
 ### Backend API
 
-| Aspect | Details |
-|--------|---------|
-| **Technology** | FastAPI application |
-| **Responsibility** | Processes requests, implements business logic, manages authentication |
-| **Key Features** | • RESTful API endpoints<br>• JWT & API Key authentication<br>• Request validation with Pydantic<br>• Business logic coordination<br>• LLM integration<br>• **WebSocket** endpoint (`/ws`) for status updates<br>• **SSE** endpoints for streaming chat responses |
+| Aspect             | Details                                                                                                                                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Technology**     | FastAPI application                                                                                                                                                                                                                                                                                       |
+| **Responsibility** | Processes requests, implements business logic, manages authentication                                                                                                                                                                                                                                     |
+| **Key Features**   | • RESTful API endpoints<br>• JWT Bearer token & API Key authentication<br>• Request validation with Pydantic<br>• Business logic coordination<br>• Multiple LLM provider integration<br>• **WebSocket** endpoint (`/ws`) for real-time status updates<br>• **SSE** endpoints for streaming chat responses |
 
 ### Worker Service
 
-| Aspect | Details |
-|--------|---------|
-| **Technology** | Python service using ARQ task queue |
-| **Responsibility** | Handles long-running background tasks |
-| **Key Features** | • Document processing<br>• Website crawling<br>• Vector embedding generation<br>• Asynchronous processing via Redis queue<br>• Publishes status updates to Redis |
+| Aspect             | Details                                                                                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Technology**     | Python service using ARQ task queue                                                                                                                              |
+| **Responsibility** | Handles long-running background tasks                                                                                                                            |
+| **Key Features**   | • Document processing<br>• Website crawling<br>• Vector embedding generation<br>• Asynchronous processing via Redis queue<br>• Publishes status updates to Redis |
 
 #### Worker Implementation
 
@@ -111,19 +113,19 @@ class WorkerSettings:
 
 ### Database
 
-| Aspect | Details |
-|--------|---------|
-| **Technology** | PostgreSQL with pgvector extension |
-| **Responsibility** | Persistent storage for structured data and vector embeddings |
-| **Key Features** | • Relational data storage<br>• Vector similarity search<br>• ACID transactions<br>• Data integrity |
+| Aspect             | Details                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| **Technology**     | PostgreSQL with pgvector extension                                                                 |
+| **Responsibility** | Persistent storage for structured data and vector embeddings                                       |
+| **Key Features**   | • Relational data storage<br>• Vector similarity search<br>• ACID transactions<br>• Data integrity |
 
 ### Message Broker / Cache
 
-| Aspect | Details |
-|--------|---------|
-| **Technology** | Redis |
-| **Responsibility** | Task queuing via ARQ, caching, **real-time event publishing for WebSockets** |
-| **Key Features** | • Task queue for background jobs (ARQ)<br>• Caching layer<br>• Pub/Sub for WebSocket status updates<br>• Temporary data storage |
+| Aspect             | Details                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Technology**     | Redis                                                                                                                           |
+| **Responsibility** | Task queuing via ARQ, caching, **real-time event publishing for WebSockets**                                                    |
+| **Key Features**   | • Task queue for background jobs (ARQ)<br>• Caching layer<br>• Pub/Sub for WebSocket status updates<br>• Temporary data storage |
 
 ## Data Flow
 
@@ -260,26 +262,26 @@ sequenceDiagram
 
 ### Knowledge Base Management
 
-| Purpose | Components |
-|---------|------------|
+| Purpose                                                      | Components                                                                                                                                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Manages different sources of knowledge that AI can reference | • Document processor (Worker)<br>• Web crawler (Worker)<br>• Embeddings generator (Worker, possibly external model)<br>• Vector search engine (PostgreSQL with pgvector) |
 
 ### Assistant Configuration
 
-| Purpose | Components |
-|---------|------------|
+| Purpose                                            | Components                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Allows creation and customization of AI assistants | • Prompt templates<br>• Knowledge source management<br>• LLM configuration<br>• Behavior settings |
 
 ### Conversation Management
 
-| Purpose | Components |
-|---------|------------|
+| Purpose                                                   | Components                                                                                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Handles chat interactions between users and AI assistants | • Session management<br>• Context window management<br>• Response generation<br>• Streaming implementation (**SSE** for chat, **WebSockets** for status) |
 
 ### Space Management
 
-| Purpose | Components |
-|---------|------------|
+| Purpose                                     | Components                                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Provides collaborative workspaces for teams | • Access control (RBAC via space memberships)<br>• Resource sharing<br>• Collaboration tools |
 
 ## Security Architecture
@@ -288,10 +290,10 @@ Intric implements a multi-layered security approach:
 
 ### Authentication
 
-- **JWT-based authentication**: For user sessions
-- **API key authentication**: For programmatic access
-- **Password Hashing**: Uses bcrypt for securely storing user passwords
-- **Optional OIDC**: Integration with providers like MobilityGuard
+- **JWT-based authentication**: For user sessions (sent via Authorization header as Bearer token)
+- **API key authentication**: For programmatic access (user and assistant-specific keys)
+- **Password Hashing**: Uses bcrypt with separate salt storage for securely storing user passwords
+- **Optional OIDC**: Integration with providers like MobilityGuard (full OpenID Connect flow)
 
 ### Authorization
 
@@ -309,7 +311,36 @@ Intric implements a multi-layered security approach:
 - **Input validation**: Using Pydantic models in FastAPI
 - **Rate limiting**: Recommended implementation at the API gateway or backend level
 - **CORS**: Configured via middleware in FastAPI
-- **Security headers**: Configurable via middleware or web server
+- **Security headers**: Configurable via FastAPI middleware or reverse proxy
+
+## Production Deployment Considerations
+
+### Typical Production Architecture
+
+In production environments (e.g., Sundsvall kommun using HAProxy and RHEL8), the architecture typically includes:
+
+| Component               | Production Setup                                                |
+| ----------------------- | --------------------------------------------------------------- |
+| **Load Balancer**       | HAProxy for distributing traffic and SSL termination (optional) |
+| **Frontend Server**     | SvelteKit Node.js server serving the application directly       |
+| **Application Servers** | Multiple FastAPI instances running via Gunicorn/Uvicorn         |
+| **Container Runtime**   | Docker/Podman on RHEL8                                          |
+| **Orchestration**       | Docker Compose or Kubernetes                                    |
+
+### Network Architecture
+
+```mermaid
+graph LR
+    Internet --> HAProxy[HAProxy<br/>Load Balancer]
+    HAProxy --> Frontend1[SvelteKit 1]
+    HAProxy --> Frontend2[SvelteKit N]
+    HAProxy --> API1[FastAPI 1]
+    HAProxy --> API2[FastAPI N]
+    API1 --> Redis
+    API1 --> PostgreSQL
+    Worker1[Worker 1] --> Redis
+    Worker2[Worker N] --> Redis
+```
 
 ## Scaling Considerations
 
@@ -317,11 +348,11 @@ Intric is designed to scale in various ways:
 
 ### Horizontal Scaling
 
-| Component | Scaling Approach |
-|-----------|------------------|
-| **Frontend** | Can be load-balanced across multiple Nginx/SvelteKit instances |
-| **Backend** | Multiple FastAPI instances can run behind a load balancer |
-| **Worker** | Multiple ARQ worker instances can consume tasks from the Redis queue |
+| Component    | Scaling Approach                                                     |
+| ------------ | -------------------------------------------------------------------- |
+| **Frontend** | Can be load-balanced across multiple SvelteKit Node.js instances     |
+| **Backend**  | Multiple FastAPI instances can run behind a load balancer            |
+| **Worker**   | Multiple ARQ worker instances can consume tasks from the Redis queue |
 
 ### Database Scaling
 
@@ -372,5 +403,3 @@ Intric follows these key design principles:
 - **LLM Providers**: Designed to potentially support multiple providers
 - **Service Interfaces**: Using dependency injection allows swapping implementations
 - **Configuration-driven**: Behavior controlled via environment variables
-
---- END OF UPDATED FILE architecture.md ---
